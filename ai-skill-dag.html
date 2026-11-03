@@ -1,0 +1,2651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AI Skill DAG · Cluster → Sub-cluster → Skill</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Vis Network library -->
+  <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    /* ----------------------------------------------------
+       DESIGN SYSTEM & CUSTOM VARIABLES (TIER 1 & 2)
+       ---------------------------------------------------- */
+    @layer reset, base, theme, components, utilities;
+
+    @layer reset {
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+    }
+
+    @layer base {
+      :root {
+        /* Colors */
+        --bg-space: #070913;
+        --bg-space-gradient: linear-gradient(135deg, #070913 0%, #030408 100%);
+        --bg-panel: rgba(13, 17, 30, 0.72);
+        --bg-panel-solid: #0d111e;
+        --bg-panel-hover: rgba(22, 29, 50, 0.85);
+        --bg-input: rgba(7, 9, 19, 0.6);
+        
+        --border-thin: rgba(255, 255, 255, 0.07);
+        --border-thin-hover: rgba(255, 255, 255, 0.15);
+        --border-active: rgba(59, 130, 246, 0.5);
+        
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --text-muted: #475569;
+        
+        /* Premium Accent Palettes (HSL for alpha control) */
+        --accent-blue-hsl: 217, 91%, 60%;
+        --accent-purple-hsl: 270, 91%, 65%;
+        --accent-amber-hsl: 38, 92%, 50%;
+        --accent-emerald-hsl: 142, 70%, 45%;
+        --accent-rose-hsl: 343, 90%, 55%;
+        --accent-cyan-hsl: 188, 82%, 48%;
+        
+        --accent-blue: hsl(var(--accent-blue-hsl));
+        --accent-purple: hsl(var(--accent-purple-hsl));
+        --accent-amber: hsl(var(--accent-amber-hsl));
+        --accent-emerald: hsl(var(--accent-emerald-hsl));
+        --accent-rose: hsl(var(--accent-rose-hsl));
+        --accent-cyan: hsl(var(--accent-cyan-hsl));
+        
+        /* Fonts */
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
+        
+        /* Shadows & Blur */
+        --panel-blur: blur(20px);
+        --glow-blue: 0 0 20px rgba(59, 130, 246, 0.25);
+        --glow-purple: 0 0 20px rgba(168, 85, 247, 0.25);
+        --glow-emerald: 0 0 20px rgba(16, 185, 129, 0.25);
+        --shadow-heavy: 0 16px 40px -10px rgba(0, 0, 0, 0.7);
+        
+        /* Transitions */
+        --transition-fast: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        --transition-normal: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        --transition-slow: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      body.light-theme {
+        --bg-space: #f8fafc;
+        --bg-space-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        --bg-panel: rgba(255, 255, 255, 0.88);
+        --bg-panel-solid: #ffffff;
+        --bg-panel-hover: rgba(241, 245, 249, 0.85);
+        --bg-input: rgba(255, 255, 255, 0.9);
+        
+        --border-thin: rgba(15, 23, 42, 0.08);
+        --border-thin-hover: rgba(15, 23, 42, 0.15);
+        --border-active: rgba(59, 130, 246, 0.5);
+        
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        
+        /* Premium Light-mode HSL offsets for node legibility and colors */
+        --accent-blue-hsl: 217, 91%, 48%;
+        --accent-purple-hsl: 270, 91%, 52%;
+        --accent-amber-hsl: 38, 92%, 42%;
+        --accent-emerald-hsl: 142, 70%, 38%;
+        --accent-rose-hsl: 343, 90%, 48%;
+        --accent-cyan-hsl: 188, 82%, 34%;
+        
+        --glow-blue: 0 0 20px rgba(59, 130, 246, 0.15);
+        --glow-purple: 0 0 20px rgba(168, 85, 247, 0.15);
+        --glow-emerald: 0 0 20px rgba(16, 185, 129, 0.15);
+        --shadow-heavy: 0 16px 40px -10px rgba(15, 23, 42, 0.12);
+      }
+
+      body.light-theme ::-webkit-scrollbar-thumb {
+        background: rgba(15, 23, 42, 0.12);
+      }
+
+      body.light-theme ::-webkit-scrollbar-thumb:hover {
+        background: rgba(15, 23, 42, 0.25);
+      }
+
+      body {
+        background-color: var(--bg-space);
+        background-image: var(--bg-space-gradient);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+        -webkit-font-smoothing: antialiased;
+      }
+      
+      /* Global Custom Scrollbars */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+      }
+
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 4px;
+        transition: background var(--transition-fast);
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+    }
+
+    /* ----------------------------------------------------
+       LAYOUT & LAYERING
+       ---------------------------------------------------- */
+    #network-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      outline: none;
+    }
+
+    /* Floating HUD Layer */
+    .hud-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: block;
+      padding: 16px;
+    }
+
+    /* Enable interaction for HUD containers */
+    .hud-panel {
+      pointer-events: auto;
+      background: var(--bg-panel);
+      backdrop-filter: var(--panel-blur);
+      border: 1px solid var(--border-thin);
+      border-radius: 16px;
+      box-shadow: var(--shadow-heavy);
+      transition: all var(--transition-normal);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .hud-panel:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    /* ----------------------------------------------------
+       COMPONENTS - TOP BAR
+       ---------------------------------------------------- */
+    .top-bar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 12;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo-container {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--glow-blue);
+    }
+
+    .brand-logo-container i, .brand-logo-container svg {
+      color: white;
+      width: 18px;
+      height: 18px;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(120deg, var(--text-primary) 40%, rgba(255,255,255,0.7) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-status-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--accent-emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-grow: 1;
+      max-width: 650px;
+      margin: 0 40px;
+    }
+
+    /* Search Component */
+    .search-box {
+      position: relative;
+      flex-grow: 1;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input-wrapper i, .search-input-wrapper svg {
+      position: absolute;
+      left: 14px;
+      color: var(--text-secondary);
+      width: 16px;
+      height: 16px;
+      pointer-events: none;
+      transition: color var(--transition-fast);
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-thin);
+      border-radius: 10px;
+      padding: 10px 16px 10px 42px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      transition: all var(--transition-fast);
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      background: var(--bg-panel-solid);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .search-input:focus + i, .search-input:focus + svg {
+      color: var(--accent-blue);
+    }
+
+    /* Search Suggestions */
+    .search-suggestions {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      width: 100%;
+      background: var(--bg-panel-solid);
+      border: 1px solid var(--border-thin);
+      border-radius: 10px;
+      box-shadow: var(--shadow-heavy);
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition: all var(--transition-normal);
+    }
+
+    .search-suggestions.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .suggestion-item {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      transition: background var(--transition-fast);
+    }
+
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+
+    .suggestion-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .suggestion-label {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .suggestion-type {
+      font-size: 0.72rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .type-leaf {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .type-category {
+      background: rgba(168, 85, 247, 0.15);
+      color: var(--accent-purple);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    /* Preset Select styling */
+    .preset-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preset-select {
+      background: var(--bg-input);
+      border: 1px solid var(--border-thin);
+      border-radius: 10px;
+      padding: 9px 12px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      cursor: pointer;
+      outline: none;
+      transition: all var(--transition-fast);
+    }
+
+    .preset-select:focus {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+    }
+
+    /* System Utility Buttons */
+    .system-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background: var(--bg-input);
+      border: 1px solid var(--border-thin);
+      color: var(--text-secondary);
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .btn-icon:hover {
+      border-color: var(--border-thin-hover);
+      color: var(--text-primary);
+      background: var(--bg-panel-hover);
+    }
+
+    .btn-icon i, .btn-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Tooltips for icon buttons */
+    .btn-icon::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(-4px);
+      background: var(--bg-panel-solid);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      font-size: 0.72rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      box-shadow: var(--shadow-heavy);
+      transition: all var(--transition-fast);
+    }
+
+    .btn-icon:hover::after {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ----------------------------------------------------
+       COMPONENTS - LEFT BAR (ANALYTICS & SUMMARY)
+       ---------------------------------------------------- */
+    .left-bar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      bottom: 16px;
+      width: 380px;
+      padding: 16px;
+      gap: 16px;
+      transform: translateX(calc(-100% - 32px));
+      transition: transform var(--transition-normal);
+      visibility: hidden;
+      z-index: 15;
+    }
+
+    .left-bar.active {
+      transform: translateX(0);
+      visibility: visible;
+    }
+
+    /* Crown Jewel Widget */
+    .crown-jewel-card {
+      background: radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.08) 0%, transparent 75%);
+      border: 1px solid rgba(245, 158, 11, 0.15);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 8px 32px -8px rgba(245, 158, 11, 0.04);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .crown-jewel-card::before {
+      content: "";
+      position: absolute;
+      top: -1px;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.5), transparent);
+    }
+
+    .crown-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .crown-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.2px;
+    }
+
+    .crown-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .crown-metrics {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+
+    .crown-metrics span {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Circular SVG Progress Ring */
+    .radial-meter {
+      position: relative;
+      width: 78px;
+      height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .radial-svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    .radial-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.04);
+      stroke-width: 6px;
+    }
+
+    .radial-fill {
+      fill: none;
+      stroke: url(#amber-gradient);
+      stroke-width: 6.5px;
+      stroke-linecap: round;
+      stroke-dasharray: 220; /* 2 * PI * r = 2 * 3.14 * 35 = ~220 */
+      stroke-dashoffset: 220;
+      transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .radial-text {
+      position: absolute;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--accent-amber);
+      text-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+    }
+
+    /* Summary Stats Cards Grid */
+    .mini-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-thin);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-header {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 500;
+    }
+
+    .stat-header i, .stat-header svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .stat-footer {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    /* Category List Section */
+    .category-section {
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      min-height: 0; /* Important for flex-child scroll */
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      flex-grow: 1;
+      padding-right: 4px;
+    }
+
+    .category-card {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--border-thin);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all var(--transition-fast);
+    }
+
+    .category-card:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(168, 85, 247, 0.3);
+      box-shadow: 0 4px 15px -4px rgba(168, 85, 247, 0.15);
+      transform: translateX(2px);
+    }
+
+    .category-card.active-highlight {
+      border-color: var(--accent-purple);
+      background: rgba(168, 85, 247, 0.05);
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.1);
+    }
+
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .category-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: var(--font-display);
+    }
+
+    .category-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent-purple);
+    }
+
+    /* Elegant glowing linear meter */
+    .linear-meter {
+      height: 5px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .linear-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+      border-radius: 4px;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+    }
+
+    /* ----------------------------------------------------
+       COMPONENTS - RIGHT BAR (NODE INSPECTOR)
+       ---------------------------------------------------- */
+    .right-bar {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      bottom: 16px;
+      width: 400px;
+      padding: 16px;
+      gap: 16px;
+      transform: translateX(calc(100% + 32px));
+      transition: transform var(--transition-normal);
+      visibility: hidden;
+      z-index: 15;
+    }
+
+    .right-bar.active {
+      transform: translateX(0);
+      visibility: visible;
+    }
+
+    .inspector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border-thin);
+      padding-bottom: 12px;
+      margin-bottom: 8px;
+    }
+
+    .inspector-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 85%;
+    }
+
+    .inspector-title {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .inspector-badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      align-self: flex-start;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .badge-root {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--accent-amber);
+      border-color: rgba(245, 158, 11, 0.2);
+    }
+
+    .badge-parent {
+      background: rgba(168, 85, 247, 0.12);
+      color: var(--accent-purple);
+      border-color: rgba(168, 85, 247, 0.2);
+    }
+
+    .badge-leaf {
+      background: rgba(59, 130, 246, 0.12);
+      color: var(--accent-blue);
+      border-color: rgba(59, 130, 246, 0.2);
+    }
+
+    .btn-close-inspector {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-close-inspector:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+    }
+
+    .btn-close-inspector i, .btn-close-inspector svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .inspector-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      flex-grow: 1;
+      padding-right: 4px;
+    }
+
+    .node-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Math Metrics Display Cards */
+    .metrics-card {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--border-thin);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .metric-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .metric-label-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .metric-label i, .metric-label svg {
+      width: 12px;
+      height: 12px;
+      color: var(--text-muted);
+      cursor: help;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .meter-progress {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .meter-progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .fill-neural {
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-rose));
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+    }
+
+    .fill-belief {
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+    }
+
+    .fill-confidence {
+      background: linear-gradient(90deg, var(--accent-amber), #eab308);
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+    }
+
+    /* Premium Custom Sliders (Leaf Controls) */
+    .slider-card {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--border-thin);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .control-value-display {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent-blue);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(59, 130, 246, 0.15);
+    }
+
+    .control-value-display.conf-val {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--accent-amber);
+      border-color: rgba(245, 158, 11, 0.15);
+    }
+
+    /* Slider track custom styling */
+    .custom-range-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      outline: none;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .custom-range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+      border: 2px solid white;
+      transition: transform var(--transition-fast), background var(--transition-fast);
+    }
+
+    .custom-range-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .custom-range-slider.conf-slider::-webkit-slider-thumb {
+      background: var(--accent-amber);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    }
+
+    .quick-preset-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-thin);
+      color: var(--text-secondary);
+      font-size: 0.68rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .pill-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      border-color: var(--border-thin-hover);
+    }
+
+    /* Explorer lists (inputs and outputs) */
+    .explore-card {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--border-thin);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .explore-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      padding-bottom: 6px;
+      margin-bottom: 4px;
+    }
+
+    .explore-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .explore-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      font-size: 0.78rem;
+    }
+
+    .explore-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border-thin-hover);
+      transform: translateX(2px);
+    }
+
+    .explore-name {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .explore-score {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+
+    /* ----------------------------------------------------
+       COMPONENTS - BOTTOM BAR (CONTROLS & PHYSICS)
+       ---------------------------------------------------- */
+    .bottom-bar {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 12;
+    }
+
+    .control-group-bottom {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bottom-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Segmented Controls (Switch Buttons) */
+    .segmented-control {
+      background: var(--bg-input);
+      border: 1px solid var(--border-thin);
+      padding: 3px;
+      border-radius: 10px;
+      display: flex;
+      gap: 2px;
+    }
+
+    .segmented-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .segmented-btn i, .segmented-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .segmented-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .segmented-btn.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-regular {
+      background: var(--bg-input);
+      border: 1px solid var(--border-thin);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-regular:hover {
+      border-color: var(--border-thin-hover);
+      background: var(--bg-panel-hover);
+    }
+
+    .btn-regular i, .btn-regular svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Floating Physics Panel */
+    .physics-settings-panel {
+      position: absolute;
+      bottom: 80px;
+      left: 20px;
+      width: 320px;
+      background: var(--bg-panel-solid);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow-heavy);
+      z-index: 99;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(8px);
+      transition: all var(--transition-normal);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .physics-settings-panel.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .physics-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 8px;
+    }
+
+    .physics-panel-title {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* ----------------------------------------------------
+       ANIMATIONS
+       ---------------------------------------------------- */
+    @keyframes pulse-glow {
+      0%, 100% {
+        opacity: 0.6;
+        box-shadow: 0 0 6px var(--accent-emerald);
+      }
+      50% {
+        opacity: 1;
+        box-shadow: 0 0 14px var(--accent-emerald);
+      }
+    }
+
+    /* Custom Alert Overlay */
+    .custom-toast {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      background: var(--bg-panel-solid);
+      border: 1px solid var(--accent-blue);
+      border-radius: 10px;
+      padding: 10px 16px;
+      box-shadow: var(--shadow-heavy);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 9999;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transform: translateY(20px);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .custom-toast.active {
+      transform: translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .custom-toast i, .custom-toast svg {
+      width: 16px;
+      height: 16px;
+      color: var(--accent-blue);
+    }
+
+    /* ---------- AI Skill DAG additions ---------- */
+    :root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: #070913; color-scheme: dark; }
+    html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+    @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { background: #f8fafc; color-scheme: light; } }
+    :root[data-theme="light"] { background: #f8fafc; color-scheme: light; }
+    :root[data-theme="dark"] { background: #070913; color-scheme: dark; }
+    :root:has(body.light-theme) { background: #f8fafc; color-scheme: light; }
+    :root:has(body:not(.light-theme)) { background: #070913; color-scheme: dark; }
+
+    body.left-open #floating-toggle-left, body.left-open #floating-toggle-theme { opacity: 0; pointer-events: none !important; transform: scale(0.8); }
+    button.category-card, button.explore-item, button.suggestion-item { font-family: inherit; color: inherit; text-align: left; width: 100%; -webkit-appearance: none; appearance: none; }
+    button.suggestion-item { background: transparent; border: none; border-bottom: 1px solid var(--border-thin); }
+    button.category-card:focus-visible, button.explore-item:focus-visible, button.suggestion-item:focus-visible, .btn-regular:focus-visible, .btn-icon:focus-visible, .pill-btn:focus-visible, .crumbs button:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+    .category-name { display: flex; flex-direction: column; gap: 1px; }
+    .cat-count { font-family: var(--font-sans); font-size: 0.62rem; font-weight: 500; color: var(--text-muted); }
+    .category-header { gap: 8px; align-items: flex-start !important; }
+    .type-sub { background: hsla(var(--accent-cyan-hsl), 0.14); color: var(--accent-cyan); border: 1px solid hsla(var(--accent-cyan-hsl), 0.25); }
+    .badge-sub { background: hsla(var(--accent-cyan-hsl), 0.12); color: var(--accent-cyan); border-color: hsla(var(--accent-cyan-hsl), 0.25); }
+
+    #inspect-meta { display: flex; flex-direction: column; gap: 12px; }
+    #inspect-meta:empty { display: none; }
+    .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--text-secondary); }
+    .crumbs button { background: none; border: none; color: var(--accent-blue); font: inherit; cursor: pointer; padding: 1px 2px; border-radius: 4px; }
+    .crumbs button:hover { text-decoration: underline; }
+    .crumb-sep { color: var(--text-muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: 0.68rem; font-weight: 600; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-thin); color: var(--text-secondary); background: var(--bg-input); }
+    .chip-id { font-family: var(--font-mono); font-weight: 500; }
+    .chip-good { color: var(--accent-emerald); border-color: hsla(var(--accent-emerald-hsl), 0.35); }
+    .chip-mid { color: var(--accent-amber); border-color: hsla(var(--accent-amber-hsl), 0.35); }
+    .chip-bad { color: var(--accent-rose); border-color: hsla(var(--accent-rose-hsl), 0.35); }
+    .tier-1 { --tc: var(--accent-emerald-hsl); } .tier-2 { --tc: var(--accent-blue-hsl); } .tier-3 { --tc: var(--accent-purple-hsl); } .tier-4 { --tc: 215, 16%, 52%; }
+    .tier-chip { color: hsl(var(--tc)); border-color: hsla(var(--tc), 0.4); background: hsla(var(--tc), 0.08); }
+    .meta-block { display: flex; flex-direction: column; gap: 6px; }
+    .meta-label { font-size: 0.66rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; }
+    .meta-val { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; }
+    .meta-val a { color: var(--accent-blue); }
+    .ev-keys { font-family: var(--font-mono); font-size: 0.7rem; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+    .meta-grid > div:first-child { grid-column: 1 / -1; }
+    .concepts { display: flex; flex-wrap: wrap; gap: 4px; }
+    .concept { font-size: 0.7rem; padding: 2px 7px; border-radius: 6px; background: hsla(var(--accent-blue-hsl), 0.08); color: var(--text-secondary); border: 1px solid hsla(var(--accent-blue-hsl), 0.16); }
+    .tier-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; }
+    .tier-seg { background: hsl(var(--tc)); }
+    .tier-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.68rem; color: var(--text-secondary); }
+    .tier-key { display: inline-flex; align-items: center; gap: 5px; }
+    .tier-dot { width: 8px; height: 8px; border-radius: 2px; background: hsl(var(--tc)); display: inline-block; }
+    .node-desc { line-height: 1.55; }
+
+    .graph-legend { position: absolute; left: 16px; bottom: 16px; z-index: 11; pointer-events: none; display: flex; gap: 14px; padding: 8px 12px; font-size: 0.7rem; color: var(--text-secondary); background: var(--bg-panel); backdrop-filter: var(--panel-blur); border: 1px solid var(--border-thin); border-radius: 10px; transition: opacity var(--transition-normal); }
+    .graph-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .graph-legend i, .graph-legend svg { border-radius: 50%; display: inline-block; }
+    body.left-open .graph-legend { opacity: 0; }
+
+    @media (max-width: 720px) {
+      .hud-layer { padding: 8px; }
+      #floating-toggle-left { top: 10px !important; left: 10px !important; }
+      #floating-toggle-theme { top: 10px !important; left: 62px !important; }
+      .left-bar, .right-bar { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; height: min(76%, 680px); transform: translateY(calc(100% + 24px)); border-radius: 16px; }
+      .left-bar.active, .right-bar.active { transform: none; }
+      .graph-legend { left: auto; right: 8px; top: 10px; bottom: auto; gap: 8px; padding: 6px 8px; font-size: 0.62rem; flex-wrap: wrap; max-width: calc(100% - 130px); }
+      body:has(.right-bar.active) .graph-legend { opacity: 0; }
+      .custom-toast { left: 12px; right: 12px; bottom: 16px; }
+      .meta-grid { grid-template-columns: 1fr; }
+    }
+    .left-bar .inspector-content > * { flex-shrink: 0; }
+    .left-bar .category-list { max-height: none !important; overflow: visible; }
+    .crown-jewel-card { flex-shrink: 0; }
+    body.light-theme .chart-container { background: rgba(15, 23, 42, 0.035) !important; border-color: rgba(15, 23, 42, 0.06) !important; }
+    body.light-theme #pdf-mean-line { stroke: #0f172a !important; }
+    body.light-theme #pdf-mean-label { color: #0f172a !important; background: rgba(255,255,255,0.9) !important; border-color: rgba(15,23,42,0.12) !important; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+  </style>
+</head>
+<body>
+
+  <!-- Background Vis Network canvas -->
+  <div id="network-canvas"></div>
+
+  <!-- HUD Overlays -->
+  <!-- HUD Overlays -->
+  <div class="hud-layer">
+    
+    <!-- Floating Dashboard Menu button -->
+    <button id="floating-toggle-left" class="hud-panel btn-icon" aria-label="Open control center" data-tooltip="Open control center" onclick="toggleLeftSidebar(true)" style="position: absolute; top: 16px; left: 16px; width: 44px; height: 44px; border-radius: 50%; z-index: 100; pointer-events: auto; display: flex; align-items: center; justify-content: center; background: var(--bg-panel); backdrop-filter: var(--panel-blur); border: 1px solid var(--border-thin); box-shadow: var(--shadow-heavy); transition: opacity var(--transition-normal), transform var(--transition-normal);">
+      <i data-lucide="sliders"></i>
+    </button>
+
+    <!-- Floating Theme Toggle button -->
+    <button id="floating-toggle-theme" class="hud-panel btn-icon" aria-label="Switch light or dark theme" data-tooltip="Switch theme" onclick="toggleTheme()" style="position: absolute; top: 16px; left: 70px; width: 44px; height: 44px; border-radius: 50%; z-index: 100; pointer-events: auto; display: flex; align-items: center; justify-content: center; background: var(--bg-panel); backdrop-filter: var(--panel-blur); border: 1px solid var(--border-thin); box-shadow: var(--shadow-heavy); transition: opacity var(--transition-normal), transform var(--transition-normal);">
+      <i id="theme-toggle-icon" data-lucide="sun"></i>
+    </button>
+
+    <!-- Left Analytics HUD Sidebar (Control Center) -->
+    <aside id="left-sidebar-panel" class="hud-panel left-bar">
+      <!-- Control Panel Header with close button -->
+      <div class="inspector-header" style="border-bottom: 1px solid var(--border-thin); padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="brand" style="display: flex; align-items: center; gap: 8px;">
+          <div class="brand-logo-container" style="width:28px; height:28px; border-radius:6px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); display: flex; align-items: center; justify-content: center; box-shadow: var(--glow-blue);">
+            <i data-lucide="sliders" style="width:14px; height:14px; color: white;"></i>
+          </div>
+          <div class="brand-title" style="font-family: var(--font-display); font-size:1.05rem; font-weight:700; color: var(--text-primary);">Control Center</div>
+        </div>
+        <button class="btn-close-inspector" aria-label="Close control center" onclick="toggleLeftSidebar(false)" style="width:24px; height:24px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-muted); cursor: pointer; border-radius: 50%; transition: all var(--transition-fast);">
+          <i data-lucide="x" style="width:14px; height:14px;"></i>
+        </button>
+      </div>
+
+      <!-- Left Sidebar Scrollable Content -->
+      <div class="inspector-content" style="gap: 14px;">
+        
+        <!-- Search & Preset Selection section -->
+        <div class="slider-card" style="padding: 12px; gap: 10px;">
+          <div class="control-group" style="display: flex; flex-direction: column; gap: 6px;">
+            <span class="control-label" style="font-size:0.75rem;">Search Skills</span>
+            <search class="search-box" style="margin:0;">
+              <div class="search-input-wrapper">
+                <input id="search-input" class="search-input" type="search" placeholder="Search skills, sub-clusters or concepts…" autocomplete="off" style="padding: 8px 12px 8px 36px; font-size:0.8rem;">
+                <i data-lucide="search" style="left:12px; width:14px; height:14px;"></i>
+              </div>
+              <div id="search-suggestions" class="search-suggestions" style="max-height:200px;"></div>
+            </search>
+          </div>
+
+          <div class="control-group" style="display: flex; flex-direction: column; gap: 6px;">
+            <span class="control-label" style="font-size:0.75rem;">Talent Profile</span>
+            <select id="preset-select" class="preset-select" onchange="loadPreset()" style="padding: 8px 10px; font-size:0.8rem; width:100%; border-radius: 10px;">
+              <option value="balanced">Balanced (by skill level)</option>
+              <option value="graduate">AICTE AI&amp;ML graduate</option>
+              <option value="data_scientist">Data Scientist</option>
+              <option value="ml_engineer">ML / MLOps Engineer</option>
+              <option value="genai_engineer">GenAI / LLM Engineer</option>
+              <option value="cv_robotics">CV &amp; Robotics Engineer</option>
+              <option value="industry_ready">Industry-ready (tier-weighted)</option>
+            </select>
+          </div>
+
+          <div class="control-group" style="display: flex; flex-direction: column; gap: 6px;">
+            <span class="control-label" style="font-size:0.75rem;">Edge Weights</span>
+            <select id="weight-select" class="preset-select" onchange="setWeightMode()" style="padding: 8px 10px; font-size:0.8rem; width:100%; border-radius: 10px;">
+              <option value="demand">Industry demand (Core 4 · Track 3 · Specialist 2 · Low 1)</option>
+              <option value="equal">Equal per parent</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Crown Jewel Card -->
+        <section class="crown-jewel-card" onclick="selectNodeByName(rootId)" style="padding:14px; cursor:pointer;">
+          <div class="crown-info">
+            <span class="crown-subtitle" style="font-size:0.65rem;">Central Hub Rating</span>
+            <h2 class="crown-title" id="crown-root-title" style="font-size:1.05rem;">AI</h2>
+            <div class="crown-metrics" style="font-size:0.6rem; margin-top:4px;">
+              <span id="crown-n">N: --</span>
+              <span id="crown-b">B: --</span>
+              <span id="crown-c">C: --</span>
+            </div>
+          </div>
+          <div class="radial-meter" style="width:68px; height:68px;">
+            <svg class="radial-svg" viewBox="0 0 80 80">
+              <defs>
+                <linearGradient id="amber-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#f59e0b" />
+                  <stop offset="100%" stop-color="#d97706" />
+                </linearGradient>
+              </defs>
+              <circle class="radial-bg" cx="40" cy="40" r="35" style="stroke-width:5px;"></circle>
+              <circle id="crown-radial-fill" class="radial-fill" cx="40" cy="40" r="35" style="stroke-width:5.5px;"></circle>
+            </svg>
+            <div id="crown-radial-text" class="radial-text" style="font-size:1.05rem;">0%</div>
+          </div>
+        </section>
+
+        <!-- Stats Grid -->
+        <section class="mini-stats-grid" style="gap: 8px;">
+          <div class="stat-card" style="padding:10px;">
+            <div class="stat-header" style="font-size:0.68rem;">
+              <i data-lucide="trending-up" style="color:var(--accent-emerald); width:10px; height:10px;"></i>
+              Highest Skill
+            </div>
+            <div id="stat-high-val" class="stat-value" style="font-size:1.05rem;">--</div>
+            <div id="stat-high-label" class="stat-footer" style="font-size:0.6rem;">--</div>
+          </div>
+          <div class="stat-card" style="padding:10px;">
+            <div class="stat-header" style="font-size:0.68rem;">
+              <i data-lucide="trending-down" style="color:var(--accent-rose); width:10px; height:10px;"></i>
+              Lowest Skill
+            </div>
+            <div id="stat-low-val" class="stat-value" style="font-size:1.05rem;">--</div>
+            <div id="stat-low-label" class="stat-footer" style="font-size:0.6rem;">--</div>
+          </div>
+        </section>
+
+        <!-- Core Domains -->
+        <section class="category-section">
+          <h3 class="section-title" style="margin-bottom:8px; font-size:0.75rem;">
+            <i data-lucide="layers" style="width:12px; height:12px;"></i>
+            Clusters
+          </h3>
+          <div id="category-list" class="category-list" style="gap:6px; max-height: 320px;">
+            <!-- Dynamic categories list -->
+          </div>
+        </section>
+
+        <!-- Collapsible Physics Options Section in Left Sidebar -->
+        <details class="explore-card" style="padding: 10px 12px; gap: 8px;">
+          <summary style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+            Physics Parameters <i data-lucide="chevron-down" style="width:12px; height:12px; transition:transform 0.2s;"></i>
+          </summary>
+          <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+            <div class="control-group">
+              <div class="control-header">
+                <span class="control-label" style="font-size:0.7rem;">Repulsion Spacing</span>
+                <span id="val-physics-spacing" style="font-family:var(--font-mono); font-size:0.75rem;">120</span>
+              </div>
+              <input id="slide-physics-spacing" class="custom-range-slider" type="range" min="40" max="300" step="5" value="120" oninput="updatePhysicsOption('spacing', this.value)">
+            </div>
+
+            <div class="control-group">
+              <div class="control-header">
+                <span class="control-label" style="font-size:0.7rem;">Central Gravity</span>
+                <span id="val-physics-gravity" style="font-family:var(--font-mono); font-size:0.75rem;">0.012</span>
+              </div>
+              <input id="slide-physics-gravity" class="custom-range-slider" type="range" min="0" max="0.1" step="0.001" value="0.012" oninput="updatePhysicsOption('gravity', this.value)">
+            </div>
+
+            <div class="control-group">
+              <div class="control-header">
+                <span class="control-label" style="font-size:0.7rem;">Spring Length</span>
+                <span id="val-physics-spring" style="font-family:var(--font-mono); font-size:0.75rem;">110</span>
+              </div>
+              <input id="slide-physics-spring" class="custom-range-slider" type="range" min="40" max="250" step="5" value="110" oninput="updatePhysicsOption('spring', this.value)">
+            </div>
+          </div>
+        </details>
+
+        <!-- Utility Utilities Section -->
+        <div class="explore-card" style="padding: 12px; gap: 8px; margin-top:auto;">
+          <div class="explore-title" style="font-size:0.72rem; margin:0; padding-bottom:4px;">Engine Actions</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+              <button class="btn-regular" onclick="setLayoutMode(layoutMode === 'organic' ? 'tree' : 'organic')" style="padding: 6px 10px; font-size:0.75rem; justify-content:center;">
+                <i data-lucide="orbit" style="width:12px; height:12px;"></i> <span id="layout-label">Tree layout</span>
+              </button>
+              <button class="btn-regular" onclick="fitGraphCamera()" style="padding: 6px 10px; font-size:0.75rem; justify-content:center;">
+                <i data-lucide="maximize" style="width:12px; height:12px;"></i> Fit to screen
+              </button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+              <button id="freeze-physics-btn" class="btn-regular" onclick="toggleFreezePhysics()" style="padding: 6px 10px; font-size:0.75rem; justify-content:center;">
+                <i data-lucide="pause" style="width:12px; height:12px;"></i> Pause sim
+              </button>
+              <button class="btn-regular" onclick="resetToDefaults()" style="padding: 6px 10px; font-size:0.75rem; justify-content:center;">
+                <i data-lucide="rotate-ccw" style="width:12px; height:12px;"></i> Reset DAG
+              </button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+              <button class="btn-regular" onclick="exportData()" style="padding: 6px 10px; font-size:0.75rem; justify-content:center;">
+                <i data-lucide="download" style="width:12px; height:12px;"></i> Export ratings
+              </button>
+              <button class="btn-regular" onclick="triggerImport()" style="padding: 6px 10px; font-size:0.75rem; justify-content:center;">
+                <i data-lucide="upload" style="width:12px; height:12px;"></i> Import ratings
+              </button>
+              <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importData(event)">
+              <button class="btn-regular" onclick="triggerHierarchy()" style="padding: 6px 10px; font-size:0.75rem; justify-content:center; grid-column: 1 / -1; width:100%; border-color:#3b82f6;">
+                <i data-lucide="git-branch" style="width:12px; height:12px;"></i> Load another hierarchy JSON
+              </button>
+              <input type="file" id="hierarchy-file" accept=".json" style="display:none;" onchange="importHierarchy(event)">
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <div class="graph-legend" aria-hidden="true">
+      <span><i style="width:12px;height:12px;background:hsl(var(--accent-amber-hsl));"></i>AI</span>
+      <span><i style="width:11px;height:11px;background:hsl(270,90%,55%);"></i>Cluster</span>
+      <span><i style="width:9px;height:9px;background:hsl(188,82%,45%);"></i>Sub-cluster</span>
+      <span><i style="width:7px;height:7px;background:hsl(217,90%,52%);"></i>Skill</span>
+    </div>
+
+    <!-- Center Space (Blank for Network View) -->
+    <div style="grid-area: center;"></div>
+
+    <!-- Right Node Inspector HUD Panel -->
+    <aside id="inspector-panel" class="hud-panel right-bar">
+      <div class="inspector-header">
+        <div class="inspector-title-group">
+          <span id="inspect-badge" class="inspector-badge badge-leaf">Skill</span>
+          <h2 id="inspect-name" class="inspector-title">Skill</h2>
+        </div>
+        <button class="btn-close-inspector" aria-label="Close inspector" onclick="closeInspector()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="inspector-content">
+        <p id="inspect-desc" class="node-desc"></p>
+        <div id="inspect-meta"></div>
+
+        <!-- Probabilistic Beta PDF Curve Chart Card -->
+        <div class="slider-card" id="beta-chart-card" style="padding: 12px; gap: 8px;">
+          <div class="explore-title" style="border:none; margin:0; padding:0; display:flex; justify-content:space-between; align-items:center;">
+            <span>Probability Density Curve</span>
+            <span id="chart-metrics-legend" style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-secondary); font-weight:600;">α: --  β: --</span>
+          </div>
+          <div class="chart-container" style="position:relative; width:100%; height:130px; background:rgba(7,9,19,0.5); border:1px solid rgba(255,255,255,0.03); border-radius:8px; overflow:hidden;">
+            <svg id="pdf-chart" viewBox="0 0 350 130" preserveAspectRatio="none" style="width:100%; height:100%; display:block;">
+              <defs>
+                <!-- Glowing gradients for the PDF area fills -->
+                <linearGradient id="leaf-curve-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(59, 130, 246, 0.45)" />
+                  <stop offset="100%" stop-color="rgba(59, 130, 246, 0.0)" />
+                </linearGradient>
+                <linearGradient id="domain-curve-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(168, 85, 247, 0.45)" />
+                  <stop offset="100%" stop-color="rgba(168, 85, 247, 0.0)" />
+                </linearGradient>
+                <linearGradient id="sub-curve-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(34, 211, 238, 0.45)" />
+                  <stop offset="100%" stop-color="rgba(34, 211, 238, 0.0)" />
+                </linearGradient>
+                <linearGradient id="root-curve-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(245, 158, 11, 0.45)" />
+                  <stop offset="100%" stop-color="rgba(245, 158, 11, 0.0)" />
+                </linearGradient>
+              </defs>
+              <!-- Ambient grid lines -->
+              <line x1="0" y1="110" x2="100%" y2="110" style="stroke:rgba(255,255,255,0.06); stroke-width:1;" />
+              <line x1="25%" y1="0" x2="25%" y2="100%" style="stroke:rgba(255,255,255,0.025); stroke-dasharray:3,3; stroke-width:1;" />
+              <line x1="50%" y1="0" x2="50%" y2="100%" style="stroke:rgba(255,255,255,0.025); stroke-dasharray:3,3; stroke-width:1;" />
+              <line x1="75%" y1="0" x2="75%" y2="100%" style="stroke:rgba(255,255,255,0.025); stroke-dasharray:3,3; stroke-width:1;" />
+              
+              <!-- Shaded Beta Area under curve -->
+              <path id="pdf-area" d="" style="fill:url(#leaf-curve-grad); transition: d 0.15s cubic-bezier(0.16, 1, 0.3, 1);" />
+              
+              <!-- Glowing Beta Stroke line -->
+              <path id="pdf-stroke" d="" style="fill:none; stroke:var(--accent-blue); stroke-width:2.5; stroke-linecap:round; transition: d 0.15s cubic-bezier(0.16, 1, 0.3, 1);" />
+              
+              <!-- Vertical dashed expected mean line -->
+              <line id="pdf-mean-line" x1="0" y1="0" x2="0" y2="110" style="stroke:#ffffff; stroke-dasharray:4,4; stroke-width:1.5; opacity:0.65; transition: x1 0.15s, x2 0.15s;" />
+              
+              <!-- Markers / Tick Labels on X-axis -->
+              <text x="5" y="121" style="fill:var(--text-muted); font-size:9px; font-family:var(--font-mono); font-weight:500;">0.0</text>
+              <text x="50%" y="121" text-anchor="middle" style="fill:var(--text-muted); font-size:9px; font-family:var(--font-mono); font-weight:500;">0.5</text>
+              <text x="91%" y="121" style="fill:var(--text-muted); font-size:9px; font-family:var(--font-mono); font-weight:500;">1.0</text>
+            </svg>
+            <div id="pdf-mean-label" style="position:absolute; bottom:25px; transform:translateX(-50%); font-family:var(--font-mono); font-size:9px; font-weight:800; color:#fff; background:rgba(13,17,30,0.85); backdrop-filter:blur(4px); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.12); pointer-events:none; white-space:nowrap; display:none; transition: left 0.15s; box-shadow:var(--shadow-heavy);">μ: 0.85</div>
+          </div>
+        </div>
+
+        <!-- Metric Values Breakdown -->
+        <div class="metrics-card">
+          <div class="explore-title" style="border:none; margin:0; padding:0;">Computed Metrics</div>
+          
+          <div class="metric-row">
+            <div class="metric-label-group">
+              <span class="metric-label">
+                Neural Rating (N)
+                <i data-lucide="info" data-tooltip="Weighted sum passed through a sigmoid activation function. Compressed inside [0.5, 0.73]."></i>
+              </span>
+              <span id="inspect-val-n" class="metric-value">--</span>
+            </div>
+            <div class="meter-progress">
+              <div id="inspect-bar-n" class="meter-progress-fill fill-neural" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="metric-row">
+            <div class="metric-label-group">
+              <span class="metric-label">
+                Belief Credibility (B)
+                <i data-lucide="info" data-tooltip="Linear weighted average representing raw Bayesian belief propagation. Standard [0.0, 1.0]."></i>
+              </span>
+              <span id="inspect-val-b" class="metric-value">--</span>
+            </div>
+            <div class="meter-progress">
+              <div id="inspect-bar-b" class="meter-progress-fill fill-belief" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="metric-row">
+            <div class="metric-label-group">
+              <span class="metric-label">
+                Self-Assessment Confidence (C)
+                <i data-lucide="info" data-tooltip="Leaves carry your self-assessed confidence; parents derive it from the propagated Beta variance."></i>
+              </span>
+              <span id="inspect-val-c" class="metric-value">--</span>
+            </div>
+            <div class="meter-progress">
+              <div id="inspect-bar-c" class="meter-progress-fill fill-confidence" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="metric-row">
+            <div class="metric-label-group">
+              <span class="metric-label">
+                Beta Engine Range (μ ± σ)
+                <i data-lucide="info" data-tooltip="Probabilistic expected skill rating and standard deviation uncertainty range computed via continuous Beta distributions."></i>
+              </span>
+              <span id="inspect-val-beta" class="metric-value" style="color:var(--accent-amber);">--</span>
+            </div>
+            <div class="meter-progress" style="position:relative;">
+              <div id="inspect-bar-beta-range" style="position:absolute; height:100%; background:rgba(245, 158, 11, 0.2); border-left:1px solid rgba(245, 158, 11, 0.4); border-right:1px solid rgba(245, 158, 11, 0.4); left:0%; width:0%; transition: left 0.15s, width 0.15s;"></div>
+              <div id="inspect-bar-beta-mean" class="meter-progress-fill" style="background:linear-gradient(90deg, #f59e0b, #d97706); box-shadow:0 0 8px rgba(245, 158, 11, 0.4); width:0%; height:100%; transition: width 0.15s;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Adjustment Inputs (Only visible if leaf node is selected) -->
+        <div id="leaf-inputs-card" class="slider-card" style="display:none;">
+          <div class="explore-title" style="border:none; margin:0; padding:0;">Skill Adjustment</div>
+          
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Skill Value Rating (V)</span>
+              <span id="val-slider-num" class="control-value-display">--</span>
+            </div>
+            <input id="val-slider" class="custom-range-slider" type="range" min="0" max="1" step="0.01" oninput="adjustLeafValue()">
+            <div class="quick-preset-pills">
+              <button class="pill-btn" onclick="setLeafSlider('val', 0.0)">0.0</button>
+              <button class="pill-btn" onclick="setLeafSlider('val', 0.25)">0.25</button>
+              <button class="pill-btn" onclick="setLeafSlider('val', 0.5)">0.50</button>
+              <button class="pill-btn" onclick="setLeafSlider('val', 0.75)">0.75</button>
+              <button class="pill-btn" onclick="setLeafSlider('val', 1.0)">1.0</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span class="control-label">Assessment Confidence (C)</span>
+              <span id="conf-slider-num" class="control-value-display conf-val">--</span>
+            </div>
+            <input id="conf-slider" class="custom-range-slider conf-slider" type="range" min="0" max="1" step="0.01" oninput="adjustLeafConfidence()">
+            <div class="quick-preset-pills">
+              <button class="pill-btn" onclick="setLeafSlider('conf', 0.0)">0.0</button>
+              <button class="pill-btn" onclick="setLeafSlider('conf', 0.25)">0.25</button>
+              <button class="pill-btn" onclick="setLeafSlider('conf', 0.5)">0.50</button>
+              <button class="pill-btn" onclick="setLeafSlider('conf', 0.75)">0.75</button>
+              <button class="pill-btn" onclick="setLeafSlider('conf', 1.0)">1.0</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mathematical inputs (Parent dependencies) -->
+        <div id="parent-explore-card" class="explore-card">
+          <div id="explore-title-in" class="explore-title">Calculated From</div>
+          <div id="explore-list-in" class="explore-list">
+            <!-- Dynamic elements -->
+          </div>
+        </div>
+
+        <!-- Mathematical outputs (Affected nodes) -->
+        <div class="explore-card">
+          <div class="explore-title">Contributes to</div>
+          <div id="explore-list-out" class="explore-list">
+            <!-- Dynamic elements -->
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Custom Alert Toast notification -->
+  <div id="alert-toast" class="custom-toast">
+    <i data-lucide="info"></i>
+    <span id="toast-message"></span>
+  </div>
+
+  <!-- ----------------------------------------------------
+       CORE DATA & LOGIC ENGINE
+       ---------------------------------------------------- -->
+  <script>
+    /* ----------------------------------------------------
+       DATA (generated from AI_Skill_Inventory_DRAFT_v0_2.xlsx)
+       ---------------------------------------------------- */
+    const DATA = {"root":"AI","rootDesc":"Artificial Intelligence domain, v0.2 draft inventory: 7 clusters, 37 sub-clusters and 140 skills. Concepts sit inside skills and are not skills themselves. Edge weights default to industry demand by tier (Core 4, Track-core 3, Specialist 2, Low use 1).","clusters":[{"name":"Classical (Symbolic) AI","num":1,"desc":"Search, logic, planning and probabilistic reasoning: the symbolic toolkit. Mostly kept for curriculum mapping; constraint solvers, knowledge graphs and state estimation still carry real industry demand.","subs":[{"name":"Intelligent agents","skills":[{"name":"Intelligent Agent Architectures","id":"CSK-AIM-101","level":"Foundational","scope":"Characterise task environments and choose an agent design that fits them.","concepts":["PEAS","environment properties (observable, deterministic, episodic, static, discrete)","reflex, model-based, goal-based, utility-based and learning agents"],"tier":4,"roles":"—","why":"Conceptual framing; renewed interest via LLM agents","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-001"}]},{"name":"State-space search","skills":[{"name":"Problem Formulation for Search","id":"CSK-AIM-102","level":"Foundational","scope":"Model a problem as states, actions, transition model, goal test and path cost.","concepts":["state representation","successor function","search tree vs graph","branching factor"],"tier":4,"roles":"—","why":"Conceptual; taught as part of AI courses","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-001"},{"name":"Uninformed Search Strategies","id":"CSK-AIM-103","level":"Foundational","scope":"Solve search problems without domain knowledge and compare strategies.","concepts":["BFS","DFS","uniform-cost","depth-limited","iterative deepening","bidirectional","completeness/optimality/complexity"],"tier":4,"roles":"—","why":"Algorithms used via DSA; AI framing mainly academic","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-001"},{"name":"Heuristic Search and A*","id":"CSK-AIM-104","level":"Intermediate","scope":"Solve search problems with heuristics and design good heuristics.","concepts":["greedy best-first","A*","admissibility","consistency","relaxed problems","IDA*","weighted A*"],"tier":3,"roles":"Robotics, game AI, logistics","why":"Used in routing, pathfinding and game AI","ev":["J"],"aicte":"Yes","rec":"Keep — tag as specialist","replaces":"CSK-AIM-001"},{"name":"Local Search and Metaheuristics","id":"CSK-AIM-105","level":"Intermediate","scope":"Optimise when only the end state matters, using local and stochastic search.","concepts":["hill climbing","random restarts","simulated annealing","local beam search","tabu search"],"tier":3,"roles":"Optimisation/OR","why":"Used for large optimisation problems","ev":["J"],"aicte":"Partial","rec":"Keep — tag as specialist","replaces":"CSK-AIM-001"},{"name":"Genetic Algorithms and Evolutionary Computation","id":"CSK-AIM-106","level":"Intermediate","scope":"Optimise with population-based evolutionary methods.","concepts":["encoding","fitness","selection","crossover","mutation","elitism","convergence"],"tier":4,"roles":"Optimisation (niche)","why":"Niche industrial optimisation","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"Swarm Intelligence Optimization","id":"CSK-AIM-107","level":"Intermediate","scope":"Optimise with swarm-based methods.","concepts":["particle swarm optimisation","ant colony optimisation","parameters","applications"],"tier":4,"roles":"—","why":"Mostly research","ev":["J"],"aicte":"No","rec":"Move to backlog","replaces":"New"}]},{"name":"Adversarial search","skills":[{"name":"Minimax and Alpha–Beta Game Search","id":"CSK-AIM-108","level":"Intermediate","scope":"Play two-player games optimally with game-tree search.","concepts":["game trees","minimax","alpha–beta pruning","move ordering","evaluation functions","expectimax"],"tier":4,"roles":"Game AI","why":"Board/turn-based game AI only","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-001"},{"name":"Monte Carlo Tree Search","id":"CSK-AIM-109","level":"Advanced","scope":"Search large game/decision trees by simulation.","concepts":["selection–expansion–simulation–backpropagation","UCT","policy/value guidance"],"tier":3,"roles":"Game AI, RL research","why":"Used in game AI and AlphaZero-style systems","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Constraint satisfaction","skills":[{"name":"Constraint Satisfaction Problems","id":"CSK-AIM-110","level":"Intermediate","scope":"Model problems as CSPs and solve them with backtracking and propagation.","concepts":["variables/domains/constraints","backtracking","MRV/degree/LCV heuristics","forward checking","arc consistency (AC-3)"],"tier":3,"roles":"Scheduling, optimisation","why":"Foundation for scheduling/configuration solvers","ev":["J"],"aicte":"Yes","rec":"Keep — tag as specialist","replaces":"CSK-AIM-001"},{"name":"Constraint and Combinatorial Optimization Solvers","id":"CSK-AIM-111","level":"Intermediate","scope":"Formulate scheduling/allocation problems for SAT, ILP and CP solvers and interpret results.","concepts":["SAT encoding","integer linear programming","constraint programming (CP-SAT-style)","objective/constraints modelling","solver tuning"],"tier":2,"roles":"OR/optimisation, supply chain","why":"Most-used classical AI in industry (scheduling, routing, allocation); O*NET Operations Research Analysts","ev":["ONET"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"New"}]},{"name":"Logic & knowledge representation","skills":[{"name":"Propositional Logic Inference","id":"CSK-AIM-112","level":"Foundational","scope":"Decide entailment in propositional logic with algorithms.","concepts":["knowledge base","entailment","model checking","resolution","CNF","DPLL"],"tier":4,"roles":"—","why":"Mostly academic; SAT used via solvers","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"First-Order Logic Representation","id":"CSK-AIM-113","level":"Foundational","scope":"Represent domain knowledge in first-order logic.","concepts":["predicates","quantifiers","functions","knowledge engineering in FOL"],"tier":4,"roles":"—","why":"Mostly academic","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"First-Order Logic Inference","id":"CSK-AIM-114","level":"Intermediate","scope":"Draw conclusions from FOL knowledge bases.","concepts":["unification","forward chaining","backward chaining","FOL resolution","Horn clauses"],"tier":4,"roles":"—","why":"Mostly academic","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"Logic Programming","id":"CSK-AIM-115","level":"Intermediate","scope":"Solve problems declaratively with Prolog-style logic programs.","concepts":["facts","rules","queries","backtracking","cut","recursion in logic programs"],"tier":4,"roles":"—","why":"Prolog rarely used in industry","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"Ontologies and Semantic Networks","id":"CSK-AIM-116","level":"Intermediate","scope":"Model concepts and relationships formally for reasoning and interoperability.","concepts":["semantic networks","frames","description logic","RDF/OWL basics","taxonomies vs ontologies"],"tier":3,"roles":"Enterprise data, healthcare, KG teams","why":"Used in data integration and healthcare/semantic web","ev":["J"],"aicte":"Yes","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Knowledge Graphs","id":"CSK-AIM-117","level":"Intermediate","scope":"Build, query and reason over knowledge graphs.","concepts":["entities/relations","triples","schema","graph queries (SPARQL/Cypher-style)","entity linking","graph-based RAG (intro)"],"tier":2,"roles":"Search, AIE, enterprise data","why":"Used in search, enterprise knowledge and graph-based RAG; NOT in AICTE","ev":["J"],"aicte":"No","rec":"Keep — industry-required","replaces":"New"},{"name":"Rule-Based and Expert Systems","id":"CSK-AIM-118","level":"Intermediate","scope":"Encode expert knowledge as rules and run inference engines.","concepts":["production rules","inference engines","conflict resolution","explanation facility","business rule engines"],"tier":3,"roles":"BFSI decisioning","why":"Business rule engines in banking/insurance","ev":["J"],"aicte":"Yes","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Fuzzy Logic and Fuzzy Inference","id":"CSK-AIM-119","level":"Intermediate","scope":"Reason with vague concepts using fuzzy sets and inference systems.","concepts":["fuzzy sets","membership functions","fuzzy operators","Mamdani/Sugeno inference","defuzzification"],"tier":4,"roles":"Control (niche)","why":"Heavily taught; limited industry demand","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"}]},{"name":"Planning","skills":[{"name":"Classical Automated Planning","id":"CSK-AIM-120","level":"Intermediate","scope":"Represent and solve planning problems with action schemas.","concepts":["STRIPS/PDDL","forward and backward state-space planning","planning heuristics","plan validation"],"tier":3,"roles":"Robotics, agents","why":"Planning ideas reused in robotics and LLM agents","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Hierarchical Task Network Planning","id":"CSK-AIM-121","level":"Advanced","scope":"Plan by decomposing high-level tasks into subtasks.","concepts":["HTN methods","task decomposition","plan refinement","uses in games/robotics/agents"],"tier":3,"roles":"Game AI, robotics","why":"Specialist","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Probabilistic reasoning","skills":[{"name":"Bayesian Network Modeling and Exact Inference","id":"CSK-AIM-122","level":"Intermediate","scope":"Model uncertain domains as Bayesian networks and answer queries exactly.","concepts":["conditional independence","CPTs","d-separation","enumeration","variable elimination"],"tier":3,"roles":"Risk modelling, diagnostics","why":"Bayesian approaches used regularly by 20% (Kaggle 2020)","ev":["KAG"],"aicte":"Yes","rec":"Keep — tag as specialist","replaces":"CSK-AIM-002"},{"name":"Approximate Probabilistic Inference","id":"CSK-AIM-123","level":"Advanced","scope":"Answer probabilistic queries by sampling when exact inference is infeasible.","concepts":["rejection/likelihood-weighted sampling","Gibbs sampling","MCMC","probabilistic programming (intro)"],"tier":3,"roles":"Bayesian DS, research","why":"Probabilistic programming in Bayesian data science","ev":["KAG"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-002"},{"name":"Hidden Markov Models and Temporal Reasoning","id":"CSK-AIM-124","level":"Intermediate","scope":"Reason about hidden states over time.","concepts":["Markov chains","HMMs","filtering","smoothing","Viterbi","Baum–Welch (intro)"],"tier":4,"roles":"Legacy speech/bio","why":"Largely replaced by neural sequence models","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"State Estimation with Kalman and Particle Filters","id":"CSK-AIM-125","level":"Advanced","scope":"Track continuous hidden state from noisy measurements.","concepts":["Bayes filter","Kalman/extended Kalman filter","histogram and particle filters"],"tier":2,"roles":"Robotics, autonomous systems, sensor fusion","why":"Core for robotics/autonomy and sensor fusion","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"New"}]},{"name":"Decision-making under uncertainty","skills":[{"name":"Utility Theory and Decision Networks","id":"CSK-AIM-126","level":"Intermediate","scope":"Make rational decisions under uncertainty using utilities.","concepts":["expected utility","utility functions","decision networks","value of information"],"tier":4,"roles":"—","why":"Mostly academic","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"Game Theory for Multi-Agent Systems","id":"CSK-AIM-127","level":"Intermediate","scope":"Analyse strategic interaction between agents.","concepts":["normal-form games","dominant strategies","Nash equilibrium","mechanism design and auctions (intro)"],"tier":3,"roles":"Ads/auctions, marketplaces","why":"Auction and marketplace design","ev":["J"],"aicte":"Partial","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Partially Observable Decision Processes","id":"CSK-AIM-128","level":"Advanced","scope":"Plan when the agent cannot observe the full state.","concepts":["POMDPs","belief states","belief-space planning (intro)"],"tier":4,"roles":"Research","why":"Research","ev":["J"],"aicte":"No","rec":"Move to backlog","replaces":"New"}]}]},{"name":"Machine Learning","num":2,"desc":"Framing, evaluating and building predictive models: feature engineering, supervised and unsupervised learning, and tree ensembles. Holds most of the Tier 1 core skills.","subs":[{"name":"ML foundations & evaluation","skills":[{"name":"ML Problem Framing","id":"CSK-AIM-129","level":"Foundational","scope":"Turn a business/product need into an ML task with target, inputs, success metric, baseline and a decision on whether ML is appropriate.","concepts":["task types","target definition","proxy metrics","baselines","no-free-lunch"],"tier":1,"roles":"DS, MLE, AIE","why":"O*NET task: identify business problems analysis can address","ev":["ONET","MAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-003"},{"name":"Maximum Likelihood and MAP Estimation","id":"CSK-AIM-130","level":"Foundational","scope":"Derive model parameters by maximising likelihood or posterior; connect losses to likelihoods.","concepts":["likelihood","log-likelihood","priors","MAP","loss–likelihood link"],"tier":4,"roles":"Research","why":"Theory behind losses; rarely applied directly at work","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-003"},{"name":"Data Splitting and Cross-Validation","id":"CSK-AIM-131","level":"Foundational","scope":"Design train/validation/test splits and cross-validation schemes that give unbiased estimates without leakage.","concepts":["holdout","k-fold","stratified/group/time-aware splits","leakage","nested CV"],"tier":1,"roles":"DS, MLE","why":"O*NET task: test, validate and reformulate models","ev":["ONET"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-003, CSK-AIM-005"},{"name":"Generalization and Bias–Variance Diagnosis","id":"CSK-AIM-132","level":"Foundational","scope":"Diagnose under/overfitting with learning/validation curves and choose remedies.","concepts":["bias–variance","capacity","learning curves","regularisation as a concept"],"tier":1,"roles":"DS, MLE","why":"Needed to judge any model; standard interview topic","ev":["ONET"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-003"},{"name":"Classification Evaluation Metrics","id":"CSK-AIM-133","level":"Foundational","scope":"Select, compute and interpret metrics and operating thresholds for classifiers.","concepts":["confusion matrix","precision/recall/F1","ROC-AUC","PR-AUC","cost-based thresholds","macro/micro averaging"],"tier":1,"roles":"DS, MLE, AIE","why":"O*NET task: compare models using performance metrics","ev":["ONET"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-005"},{"name":"Regression Evaluation and Residual Analysis","id":"CSK-AIM-134","level":"Foundational","scope":"Evaluate regression models with error metrics and residual diagnostics.","concepts":["MAE","RMSE","MAPE","R²","residual plots","heteroscedasticity"],"tier":1,"roles":"DS, MLE","why":"O*NET task: compare models using performance metrics","ev":["ONET"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-005"},{"name":"Ranking Evaluation Metrics","id":"CSK-AIM-135","level":"Intermediate","scope":"Evaluate ranked outputs for search and recommendation.","concepts":["precision@k","recall@k","MAP","MRR","nDCG","offline vs online"],"tier":2,"roles":"Search/RecSys, AIE","why":"Needed to evaluate retrieval in RAG and recommenders","ev":["AMP"],"aicte":"No","rec":"Keep — industry-required","replaces":"New"},{"name":"Hyperparameter Optimization","id":"CSK-AIM-136","level":"Intermediate","scope":"Tune hyperparameters efficiently and without overfitting the validation set.","concepts":["grid/random search","Bayesian optimisation","early stopping","search spaces"],"tier":1,"roles":"DS, MLE","why":"Routine step in every model build","ev":["J"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-005"},{"name":"Learning from Imbalanced Data","id":"CSK-AIM-137","level":"Intermediate","scope":"Train and evaluate models when classes are highly skewed.","concepts":["resampling","SMOTE","class weights","threshold moving","appropriate metrics"],"tier":2,"roles":"DS (BFSI, fraud, health)","why":"BFSI leads Indian AI hiring; fraud/risk data is imbalanced","ev":["NAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-005"},{"name":"Probability Calibration","id":"CSK-AIM-138","level":"Advanced","scope":"Make predicted probabilities trustworthy and measure calibration.","concepts":["reliability diagrams","Brier score","ECE","Platt scaling","isotonic regression"],"tier":3,"roles":"DS (risk, ads, credit)","why":"Matters where probabilities drive decisions","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-005"},{"name":"Model Error Analysis","id":"CSK-AIM-139","level":"Intermediate","scope":"Systematically find where and why a model fails and prioritise fixes.","concepts":["slice analysis","confusion analysis","label-noise checks","failure taxonomies"],"tier":1,"roles":"DS, MLE, AIE","why":"O*NET task: test, validate and reformulate models","ev":["ONET"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-005"}]},{"name":"Feature engineering","skills":[{"name":"Categorical Feature Encoding","id":"CSK-AIM-140","level":"Foundational","scope":"Encode categorical variables for models, avoiding leakage and dimensionality blow-up.","concepts":["one-hot","ordinal","target/frequency encoding","hashing","high cardinality"],"tier":1,"roles":"DS, MLE","why":"Every tabular model needs it","ev":["ONET"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-006"},{"name":"Numerical Feature Scaling and Transformation","id":"CSK-AIM-141","level":"Foundational","scope":"Scale and transform numeric features to suit model assumptions.","concepts":["standardisation","min-max","robust scaling","log/Box-Cox","binning"],"tier":1,"roles":"DS, MLE","why":"Every tabular model needs it","ev":["ONET"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-006"},{"name":"Missing-Value Imputation for ML","id":"CSK-AIM-142","level":"Foundational","scope":"Choose and apply imputation strategies inside a modelling pipeline.","concepts":["MCAR/MAR/MNAR","simple/KNN/iterative imputation","missing indicators"],"tier":1,"roles":"DS, MLE","why":"O*NET task: clean and manipulate raw data","ev":["ONET"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-006"},{"name":"Leakage-Safe Preprocessing Pipelines","id":"CSK-AIM-143","level":"Foundational","scope":"Compose preprocessing and model steps so transforms are fit only on training folds and reproducible at inference.","concepts":["fit/transform discipline","column transformers","pipeline serialisation"],"tier":1,"roles":"DS, MLE","why":"Prevents the most common production ML bug","ev":["J"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-006"},{"name":"Feature Selection","id":"CSK-AIM-144","level":"Intermediate","scope":"Select informative feature subsets with filter, wrapper and embedded methods.","concepts":["correlation/mutual information","RFE","L1-based selection","stability"],"tier":2,"roles":"DS","why":"O*NET task: apply feature selection algorithms","ev":["ONET"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-006"},{"name":"Principal Component Analysis","id":"CSK-AIM-145","level":"Intermediate","scope":"Reduce dimensionality linearly and interpret components and explained variance.","concepts":["covariance","eigen/SVD view","explained variance","whitening"],"tier":2,"roles":"DS","why":"Common in DS work; heavily taught","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-006"},{"name":"Nonlinear Dimensionality Reduction for Visualization","id":"CSK-AIM-146","level":"Intermediate","scope":"Visualise high-dimensional data with manifold methods and read the plots correctly.","concepts":["t-SNE","UMAP","perplexity/neighbours","common misreadings"],"tier":3,"roles":"DS, AIE (embedding analysis)","why":"Used for exploring embeddings","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-006"}]},{"name":"Supervised learning","skills":[{"name":"Linear Regression","id":"CSK-AIM-147","level":"Foundational","scope":"Fit, interpret and diagnose linear regression models.","concepts":["OLS","normal equations","gradient descent fit","assumptions","polynomial features"],"tier":1,"roles":"DS, MLE","why":"Most-used algorithm: 59% regularly use linear/logistic regression","ev":["KAG"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-004"},{"name":"Regularized Linear Models","id":"CSK-AIM-148","level":"Intermediate","scope":"Control complexity of linear models with L1/L2 penalties.","concepts":["ridge","lasso","elastic net","regularisation paths","sparsity"],"tier":2,"roles":"DS","why":"Standard upgrade to linear baselines","ev":["KAG"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-004"},{"name":"Logistic Regression","id":"CSK-AIM-149","level":"Foundational","scope":"Train and interpret logistic regression for binary classification.","concepts":["sigmoid","log-loss","decision boundary","odds ratios"],"tier":1,"roles":"DS, MLE","why":"Most-used algorithm: 59% regularly use linear/logistic regression","ev":["KAG"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-004"},{"name":"Multiclass and Multilabel Classification","id":"CSK-AIM-150","level":"Intermediate","scope":"Extend classifiers to many classes or labels.","concepts":["softmax regression","one-vs-rest","one-vs-one","multilabel strategies and metrics"],"tier":2,"roles":"DS, MLE, NLP","why":"Common in text/intent/tagging problems","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-004"},{"name":"k-Nearest Neighbors","id":"CSK-AIM-151","level":"Foundational","scope":"Apply instance-based learning for classification and regression.","concepts":["distance metrics","choice of k","scaling","curse of dimensionality"],"tier":4,"roles":"—","why":"Rarely deployed as a classifier; nearest-neighbour search lives in vector search","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-008"},{"name":"Naive Bayes Classifiers","id":"CSK-AIM-152","level":"Foundational","scope":"Apply generative probabilistic classifiers to tabular and text data.","concepts":["Gaussian/multinomial/Bernoulli","independence assumption","smoothing"],"tier":4,"roles":"—","why":"Mostly a teaching/baseline model today","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-008"},{"name":"Support Vector Machines","id":"CSK-AIM-153","level":"Intermediate","scope":"Train maximum-margin classifiers/regressors with kernels.","concepts":["hinge loss","soft margin","kernel trick","RBF/polynomial","SVR"],"tier":4,"roles":"—","why":"Largely replaced by boosted trees and neural nets","ev":["KAG"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-008"}]},{"name":"Trees & ensembles","skills":[{"name":"Decision Tree Learning","id":"CSK-AIM-154","level":"Foundational","scope":"Induce, prune and interpret classification and regression trees.","concepts":["Gini","entropy/information gain","CART","pruning","regression trees"],"tier":1,"roles":"DS, MLE","why":"49% regularly use decision trees/random forests","ev":["KAG"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-007"},{"name":"Bagging and Random Forests","id":"CSK-AIM-155","level":"Intermediate","scope":"Reduce variance with bootstrap aggregation and random forests.","concepts":["bootstrap","feature bagging","out-of-bag error","extra-trees"],"tier":1,"roles":"DS, MLE","why":"49% regularly use decision trees/random forests","ev":["KAG"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-007"},{"name":"AdaBoost","id":"CSK-AIM-156","level":"Intermediate","scope":"Build boosted ensembles by reweighting misclassified samples.","concepts":["weak learners","sample weights","exponential loss"],"tier":4,"roles":"—","why":"Superseded by gradient boosting in practice","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-007"},{"name":"Gradient Boosted Decision Trees","id":"CSK-AIM-157","level":"Intermediate","scope":"Train and tune gradient-boosted tree ensembles for tabular data.","concepts":["residual fitting","shrinkage","tree constraints","early stopping","XGBoost/LightGBM-style systems"],"tier":1,"roles":"DS, MLE","why":"Dominant model for tabular data (29% regular use); NOT in AICTE syllabi","ev":["KAG"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-007"},{"name":"Stacking and Model Blending","id":"CSK-AIM-158","level":"Advanced","scope":"Combine heterogeneous models with meta-learners.","concepts":["out-of-fold predictions","meta-model","blending","leakage risks"],"tier":4,"roles":"Competitions","why":"Mostly Kaggle; rare in production due to complexity","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-007"}]},{"name":"Unsupervised learning","skills":[{"name":"k-Means Clustering","id":"CSK-AIM-159","level":"Foundational","scope":"Partition data with k-means and choose k responsibly.","concepts":["Lloyd’s algorithm","k-means++","elbow","limitations"],"tier":2,"roles":"DS","why":"Customer segmentation is a standard DS task","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-009"},{"name":"Hierarchical Clustering","id":"CSK-AIM-160","level":"Foundational","scope":"Build and interpret agglomerative clusterings.","concepts":["linkage criteria","dendrograms","cutting the tree"],"tier":4,"roles":"DS (bio/small data)","why":"Limited to small datasets","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-009"},{"name":"Density-Based Clustering","id":"CSK-AIM-161","level":"Intermediate","scope":"Find arbitrarily shaped clusters and noise.","concepts":["DBSCAN","HDBSCAN","eps/minPts","core/border/noise"],"tier":3,"roles":"DS (geo, anomaly)","why":"Useful for spatial and noisy data","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-009"},{"name":"Gaussian Mixture Models and Expectation–Maximization","id":"CSK-AIM-162","level":"Advanced","scope":"Fit probabilistic mixture models with EM.","concepts":["mixture densities","E/M steps","soft assignment","model selection (BIC)"],"tier":4,"roles":"Research","why":"Mostly academic in industry settings","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-009"},{"name":"Cluster Validation","id":"CSK-AIM-163","level":"Intermediate","scope":"Evaluate clustering quality internally and externally.","concepts":["silhouette","Davies–Bouldin","ARI/NMI","stability"],"tier":2,"roles":"DS","why":"Needed whenever clustering is used","ev":["J"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-009"},{"name":"Anomaly Detection","id":"CSK-AIM-164","level":"Intermediate","scope":"Detect outliers and novel events with statistical and ML methods.","concepts":["z-score/IQR","isolation forest","LOF","one-class SVM","evaluation with scarce labels"],"tier":2,"roles":"DS, MLE (fraud, monitoring, IoT)","why":"Fraud/risk in BFSI and ops monitoring; NOT in AICTE syllabi","ev":["NAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-009"},{"name":"Association Rule Mining","id":"CSK-AIM-165","level":"Intermediate","scope":"Discover frequent itemsets and association rules.","concepts":["support","confidence","lift","Apriori","FP-growth"],"tier":4,"roles":"Retail analytics","why":"Market-basket analysis; low general demand","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"}]}]},{"name":"Deep Learning","num":3,"desc":"Neural-network training foundations, the main architectures, and deep generative models.","subs":[{"name":"NN foundations","skills":[{"name":"Multilayer Perceptrons","id":"CSK-AIM-166","level":"Foundational","scope":"Build feed-forward networks and explain their computation.","concepts":["neurons","activation functions","forward pass","universal approximation intuition"],"tier":2,"roles":"MLE, CV, NLP","why":"19% regular use; base for all deep learning","ev":["KAG"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-010"},{"name":"Backpropagation and Automatic Differentiation","id":"CSK-AIM-167","level":"Intermediate","scope":"Compute gradients through computation graphs and verify them.","concepts":["chain rule on graphs","reverse-mode autodiff","gradient checking"],"tier":2,"roles":"MLE, Research","why":"Frameworks automate it, but expected in DL interviews","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-010"},{"name":"Loss Functions for Deep Learning","id":"CSK-AIM-168","level":"Intermediate","scope":"Choose and implement losses matched to tasks.","concepts":["MSE","cross-entropy","label smoothing","focal","contrastive/triplet"],"tier":2,"roles":"MLE, CV, NLP","why":"Choosing losses is a routine DL decision","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-010"},{"name":"Neural Network Optimizers and Learning-Rate Schedules","id":"CSK-AIM-169","level":"Intermediate","scope":"Train networks with modern optimisers and schedules.","concepts":["SGD","momentum","RMSProp","Adam/AdamW","warm-up","cosine/step schedules"],"tier":2,"roles":"MLE, CV, NLP","why":"Routine part of training","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-010"},{"name":"Weight Initialization and Normalization Layers","id":"CSK-AIM-170","level":"Intermediate","scope":"Keep deep networks trainable via initialisation and normalisation.","concepts":["Xavier/He init","vanishing/exploding gradients","batch/layer norm"],"tier":3,"roles":"MLE, Research","why":"Mostly handled by frameworks/pretrained models","ev":["J"],"aicte":"Partial","rec":"Keep — tag as specialist","replaces":"CSK-AIM-010"},{"name":"Regularization for Deep Networks","id":"CSK-AIM-171","level":"Intermediate","scope":"Reduce overfitting in neural networks.","concepts":["dropout","weight decay","data augmentation","early stopping"],"tier":2,"roles":"MLE, CV, NLP","why":"Routine part of training","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-010"},{"name":"Deep Learning Framework Programming","id":"CSK-AIM-172","level":"Foundational","scope":"Implement data loading, models and training loops in a tensor framework on GPU.","concepts":["tensors","modules","datasets/loaders","training/eval loops","checkpoints","device placement"],"tier":1,"roles":"MLE, AIE, CV, NLP","why":"PyTorch in 47%, TensorFlow in 39% of ML postings","ev":["PD"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-010"},{"name":"Neural Network Training Diagnostics","id":"CSK-AIM-173","level":"Intermediate","scope":"Debug failing or unstable deep-learning training runs.","concepts":["overfit-one-batch","loss/gradient monitoring","NaNs","LR range test","mixed-precision issues"],"tier":2,"roles":"MLE, CV, NLP","why":"Day-to-day skill when training models","ev":["J"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-010"}]},{"name":"Architectures","skills":[{"name":"Convolutional Neural Networks","id":"CSK-AIM-174","level":"Intermediate","scope":"Design and train CNNs for grid-structured data.","concepts":["convolution","padding/stride","pooling","receptive field"],"tier":2,"roles":"CV, MLE","why":"33% regularly use CNNs","ev":["KAG"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-011"},{"name":"Modern CNN Architectures","id":"CSK-AIM-175","level":"Intermediate","scope":"Explain and use landmark CNN designs.","concepts":["VGG","Inception","ResNet/residual connections","EfficientNet","depthwise separable conv"],"tier":2,"roles":"CV","why":"ResNet-family backbones are standard in CV","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-011"},{"name":"Transfer Learning and Fine-Tuning","id":"CSK-AIM-176","level":"Intermediate","scope":"Adapt pre-trained models to new tasks with limited data.","concepts":["feature extraction","layer freezing","fine-tuning schedules","domain shift"],"tier":1,"roles":"MLE, CV, NLP, AIE","why":"Most real DL work starts from pretrained models","ev":["AMP"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-011"},{"name":"Recurrent Neural Networks and Gated Units","id":"CSK-AIM-177","level":"Intermediate","scope":"Model sequences with RNNs, LSTMs and GRUs.","concepts":["BPTT","vanishing gradients","LSTM/GRU gates","bidirectional RNNs"],"tier":4,"roles":"Legacy NLP/time series","why":"19% (2020) and falling; replaced by transformers","ev":["KAG"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-012"},{"name":"Sequence-to-Sequence Models and Attention","id":"CSK-AIM-178","level":"Intermediate","scope":"Map input sequences to output sequences with encoder–decoders and attention.","concepts":["encoder–decoder","additive/dot attention","teacher forcing","beam search"],"tier":4,"roles":"—","why":"Historical step toward transformers","ev":["J"],"aicte":"No","rec":"Move to backlog","replaces":"CSK-AIM-012"},{"name":"Transformer Architecture","id":"CSK-AIM-179","level":"Intermediate","scope":"Explain and implement the transformer and its variants.","concepts":["self-attention","multi-head","positional encoding","encoder-only/decoder-only/enc-dec","masking"],"tier":1,"roles":"MLE, NLP, AIE, CV","why":"Foundation of LLMs; NOT in AICTE syllabi","ev":["PD","MAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-012"},{"name":"Self-Supervised and Contrastive Learning","id":"CSK-AIM-180","level":"Advanced","scope":"Learn representations from unlabelled data.","concepts":["pretext tasks","contrastive loss","SimCLR/CLIP-style objectives","masked modelling"],"tier":3,"roles":"Research, foundation-model teams","why":"Used mainly by teams training their own models","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Deep generative models","skills":[{"name":"Autoencoders","id":"CSK-AIM-181","level":"Intermediate","scope":"Learn compressed representations with encoder–decoder networks.","concepts":["undercomplete","denoising","sparse","reconstruction loss"],"tier":3,"roles":"DS, MLE (anomaly, compression)","why":"Used in anomaly detection/representation","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Variational Autoencoders","id":"CSK-AIM-182","level":"Advanced","scope":"Train latent-variable generative models with variational inference.","concepts":["ELBO","reparameterisation trick","KL term","latent sampling"],"tier":4,"roles":"Research","why":"Mostly research","ev":["J"],"aicte":"No","rec":"Move to backlog","replaces":"New"},{"name":"Generative Adversarial Networks","id":"CSK-AIM-183","level":"Advanced","scope":"Train generator–discriminator models and handle instability.","concepts":["minimax objective","mode collapse","conditional GANs"],"tier":4,"roles":"Research","why":"6% regular use; largely replaced by diffusion","ev":["KAG"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"Diffusion Models","id":"CSK-AIM-184","level":"Advanced","scope":"Generate data by learning to reverse a noising process.","concepts":["forward/reverse process","denoising objective","samplers","guidance"],"tier":3,"roles":"GenAI (image/video)","why":"Image/video generation teams","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]}]},{"name":"Generative AI & LLMs","num":4,"desc":"Building with large language models: prompting, embeddings and RAG, agents, fine-tuning, alignment, multimodal models, evaluation and safety.","subs":[{"name":"LLM fundamentals","skills":[{"name":"Large Language Model Fundamentals","id":"CSK-AIM-185","level":"Foundational","scope":"Explain how LLMs are built and behave, and their limits.","concepts":["tokens","pre-training objective","context window","decoding/temperature/top-p","hallucination"],"tier":1,"roles":"All AI/ML roles","why":"LLMs in 21% of ML postings; GenAI a top India skill; NOT in AICTE syllabi","ev":["PD","NAS","MAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-014"}]},{"name":"Prompting","skills":[{"name":"Prompt Engineering","id":"CSK-AIM-186","level":"Foundational","scope":"Design prompts that reliably produce correct, structured outputs.","concepts":["instructions","zero/few-shot","chain-of-thought","structured/JSON output","prompt templates"],"tier":1,"roles":"All AI/ML roles","why":"Named top skill in Nasscom–Indeed 2026","ev":["NAS","MAS","AMP"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-014"}]},{"name":"Embeddings & RAG","skills":[{"name":"Embeddings and Vector Similarity Search","id":"CSK-AIM-187","level":"Intermediate","scope":"Represent content as embeddings and retrieve by similarity at scale.","concepts":["embedding models","cosine/dot similarity","ANN indexes (HNSW, IVF)","vector databases"],"tier":2,"roles":"AIE, Search","why":"65% of AI engineers use a vector DB","ev":["AMP","MAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-014"},{"name":"Retrieval-Augmented Generation","id":"CSK-AIM-188","level":"Intermediate","scope":"Ground LLM answers in retrieved documents.","concepts":["chunking","hybrid search","re-ranking","context assembly","citations"],"tier":2,"roles":"AIE","why":"70% of AI engineers use RAG; most-cited India AI-engineer requirement","ev":["AMP","MAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-014"}]},{"name":"Agents","skills":[{"name":"LLM Tool Calling and Agents","id":"CSK-AIM-189","level":"Intermediate","scope":"Let LLMs call tools and run multi-step agent loops safely.","concepts":["function calling","ReAct-style loops","planning","memory","tool protocols"],"tier":2,"roles":"AIE","why":"Fastest-growing area; <20% say agents work well yet","ev":["AMP","MAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-014"}]},{"name":"Fine-tuning","skills":[{"name":"LLM Fine-Tuning","id":"CSK-AIM-190","level":"Advanced","scope":"Adapt LLMs with supervised and parameter-efficient fine-tuning.","concepts":["SFT/instruction tuning","LoRA/QLoRA","dataset curation","catastrophic forgetting"],"tier":2,"roles":"AIE, MLE","why":"41% fine-tune; LoRA/QLoRA most mentioned","ev":["AMP"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-012"}]},{"name":"Alignment","skills":[{"name":"Preference Alignment of Language Models","id":"CSK-AIM-191","level":"Advanced","scope":"Align model behaviour to human preferences.","concepts":["reward models","RLHF","DPO","preference data"],"tier":3,"roles":"Foundation-model teams","why":"DPO used by some fine-tuners; mostly model labs","ev":["AMP"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Multimodal models","skills":[{"name":"Multimodal Foundation Models","id":"CSK-AIM-192","level":"Advanced","scope":"Use and adapt models that combine vision and language.","concepts":["CLIP-style alignment","vision-language models","image captioning/VQA"],"tier":3,"roles":"AIE, CV","why":"Growing (audio/vision adoption planned)","ev":["AMP"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"LLM evaluation & safety","skills":[{"name":"LLM Application Evaluation","id":"CSK-AIM-193","level":"Intermediate","scope":"Evaluate LLM and RAG systems systematically.","concepts":["golden sets","task metrics","LLM-as-judge","faithfulness/relevance","regression testing"],"tier":2,"roles":"AIE","why":">50% rely on offline evaluation","ev":["AMP"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-014"},{"name":"LLM Safety and Guardrails","id":"CSK-AIM-194","level":"Intermediate","scope":"Defend LLM applications against misuse and unsafe output.","concepts":["prompt injection","jailbreaks","output validation","PII handling","content filters"],"tier":2,"roles":"AIE","why":"Required for any user-facing LLM product","ev":["MAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-014"}]}]},{"name":"Reinforcement Learning","num":5,"desc":"Sequential decision-making, from bandits and MDPs to model-free and deep RL.","subs":[{"name":"Bandits","skills":[{"name":"Multi-Armed Bandits","id":"CSK-AIM-195","level":"Intermediate","scope":"Balance exploration and exploitation in sequential decisions.","concepts":["ε-greedy","UCB","Thompson sampling","regret","contextual bandits (intro)"],"tier":3,"roles":"RecSys, ads, experimentation","why":"Used in ads/personalisation","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"MDPs","skills":[{"name":"Markov Decision Processes and Dynamic Programming","id":"CSK-AIM-196","level":"Intermediate","scope":"Formulate MDPs and solve them with known dynamics.","concepts":["states/actions/rewards","Bellman equations","value/policy iteration"],"tier":4,"roles":"Research","why":"Theory for RL","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"}]},{"name":"Model-free RL","skills":[{"name":"Model-Free Reinforcement Learning","id":"CSK-AIM-197","level":"Intermediate","scope":"Learn policies from experience without a model.","concepts":["Monte Carlo","TD learning","Q-learning","SARSA","exploration"],"tier":4,"roles":"Research, robotics","why":"Limited direct industry use","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"}]},{"name":"Deep RL","skills":[{"name":"Deep Reinforcement Learning","id":"CSK-AIM-198","level":"Advanced","scope":"Combine deep networks with RL algorithms.","concepts":["DQN","policy gradients","actor–critic","PPO"],"tier":3,"roles":"Robotics, RLHF, games","why":"Specialist (robotics, model alignment)","ev":["J"],"aicte":"Partial","rec":"Keep — tag as specialist","replaces":"New"}]}]},{"name":"Application Areas","num":6,"desc":"Applied domains: computer vision, NLP, speech and audio, time series, recommender systems, graph ML and robotics.","subs":[{"name":"Computer vision","skills":[{"name":"Digital Image Processing Fundamentals","id":"CSK-AIM-199","level":"Foundational","scope":"Manipulate and enhance images with classical operations.","concepts":["colour spaces","histograms","filtering/convolution","edges","morphology","thresholding"],"tier":2,"roles":"CV","why":"Base skill for CV roles","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"New"},{"name":"Classical Feature Detection and Matching","id":"CSK-AIM-200","level":"Intermediate","scope":"Detect, describe and match local image features.","concepts":["corners","SIFT/ORB","matching","RANSAC","homography"],"tier":3,"roles":"CV (AR, robotics)","why":"Still used in AR/robotics/geometry","ev":["J"],"aicte":"Partial","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Object Detection","id":"CSK-AIM-201","level":"Intermediate","scope":"Localise and classify objects in images.","concepts":["two-stage vs one-stage","anchors","NMS","IoU","mAP"],"tier":2,"roles":"CV","why":"Most deployed CV task (CV in 6% of DS postings)","ev":["DS365"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-011"},{"name":"Image Segmentation","id":"CSK-AIM-202","level":"Intermediate","scope":"Assign pixel-level labels for semantic and instance segmentation.","concepts":["FCN/U-Net","mask-based instance segmentation","Dice/IoU"],"tier":2,"roles":"CV","why":"Medical, manufacturing, autonomous systems","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-011"},{"name":"Vision Transformers","id":"CSK-AIM-203","level":"Advanced","scope":"Apply transformer architectures to images.","concepts":["patch embeddings","ViT","hybrid models","data requirements"],"tier":3,"roles":"CV","why":"Increasingly used CV backbones","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Video Analysis and Object Tracking","id":"CSK-AIM-204","level":"Advanced","scope":"Model temporal visual data and track objects across frames.","concepts":["optical flow","multi-object tracking","temporal models"],"tier":3,"roles":"CV (surveillance, retail, sports)","why":"Specialist CV","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Natural language processing","skills":[{"name":"Text Preprocessing and Tokenization","id":"CSK-AIM-205","level":"Foundational","scope":"Prepare raw text for models with normalisation and tokenisation.","concepts":["normalisation","stemming/lemmatisation","stop-words","subword tokenisers (BPE/WordPiece)"],"tier":2,"roles":"NLP, AIE","why":"NLP in 19% of DS postings (2025)","ev":["DS365"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-013"},{"name":"Bag-of-Words and TF-IDF Representations","id":"CSK-AIM-206","level":"Foundational","scope":"Represent documents as sparse vectors.","concepts":["vocabulary","n-grams","TF-IDF weighting","sparse matrices"],"tier":2,"roles":"NLP, Search","why":"Still used for baselines and keyword/hybrid search","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-013"},{"name":"Word Embeddings","id":"CSK-AIM-207","level":"Intermediate","scope":"Learn and use dense word vectors.","concepts":["word2vec","GloVe","fastText","similarity/analogy","limitations"],"tier":4,"roles":"—","why":"Superseded by contextual/transformer embeddings","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-013"},{"name":"Statistical Language Modeling","id":"CSK-AIM-208","level":"Intermediate","scope":"Build and evaluate n-gram language models.","concepts":["n-grams","smoothing","perplexity"],"tier":4,"roles":"—","why":"n-gram LMs are mainly of historical/teaching value","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-013"},{"name":"Text Classification","id":"CSK-AIM-209","level":"Intermediate","scope":"Build text classifiers from classical to transformer-based.","concepts":["sentiment/topic/intent tasks","linear baselines","fine-tuned encoders","evaluation"],"tier":2,"roles":"NLP, DS","why":"Sentiment, intent, routing — common NLP task","ev":["DS365"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-013"},{"name":"Sequence Labeling and Named Entity Recognition","id":"CSK-AIM-210","level":"Intermediate","scope":"Tag tokens with structured labels.","concepts":["POS tagging","BIO scheme","NER","CRF (intro)","span F1"],"tier":2,"roles":"NLP","why":"Information extraction in documents","ev":["DS365"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"CSK-AIM-013"},{"name":"Information Retrieval and Ranking","id":"CSK-AIM-211","level":"Intermediate","scope":"Build keyword search and ranking over document collections.","concepts":["inverted index","BM25","query processing","learning-to-rank (intro)"],"tier":2,"roles":"Search, AIE","why":"BM25 is part of hybrid retrieval in RAG","ev":["AMP"],"aicte":"No","rec":"Keep — industry-required","replaces":"New"},{"name":"Topic Modeling","id":"CSK-AIM-212","level":"Intermediate","scope":"Discover latent themes in document collections.","concepts":["LDA","NMF","coherence","interpretation"],"tier":4,"roles":"—","why":"Largely replaced by embedding clustering/LLMs","ev":["J"],"aicte":"Yes","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"New"},{"name":"Text Generation Evaluation","id":"CSK-AIM-213","level":"Advanced","scope":"Evaluate generated text for tasks like summarisation and translation.","concepts":["BLEU","ROUGE","BERTScore","human evaluation protocols"],"tier":3,"roles":"NLP","why":"Summarisation/translation evaluation","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-013"}]},{"name":"Speech & audio","skills":[{"name":"Audio Signal Features","id":"CSK-AIM-214","level":"Intermediate","scope":"Represent audio for learning.","concepts":["sampling","spectrograms","mel scale","MFCCs"],"tier":3,"roles":"Speech/audio","why":"Audio adoption growing (37% plan to adopt)","ev":["AMP"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"},{"name":"Automatic Speech Recognition","id":"CSK-AIM-215","level":"Advanced","scope":"Build and evaluate speech-to-text systems.","concepts":["acoustic models","CTC","encoder–decoder ASR","WER"],"tier":3,"roles":"Speech/audio","why":"Voice products; mostly via pretrained models","ev":["AMP"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Time series","skills":[{"name":"Time Series Analysis Fundamentals","id":"CSK-AIM-216","level":"Intermediate","scope":"Characterise temporal data before forecasting.","concepts":["trend/seasonality","decomposition","stationarity","ACF/PACF","differencing"],"tier":2,"roles":"DS (retail, supply chain, finance)","why":"Demand forecasting is common in Indian retail/BFSI","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"New"},{"name":"Statistical Forecasting Models","id":"CSK-AIM-217","level":"Intermediate","scope":"Forecast with ARIMA-family and exponential smoothing models.","concepts":["AR/MA/ARIMA/SARIMA","exponential smoothing","prediction intervals"],"tier":2,"roles":"DS","why":"ARIMA/ETS still standard baselines","ev":["J"],"aicte":"No","rec":"Keep — industry-required","replaces":"New"},{"name":"Machine Learning Forecasting and Backtesting","id":"CSK-AIM-218","level":"Intermediate","scope":"Forecast with ML/DL models and evaluate with time-respecting backtests.","concepts":["lag/window features","global models","rolling-origin backtesting","forecast metrics"],"tier":2,"roles":"DS, MLE","why":"Gradient-boosted/global models now common","ev":["J"],"aicte":"No","rec":"Keep — industry-required","replaces":"New"}]},{"name":"Recommender systems","skills":[{"name":"Collaborative Filtering","id":"CSK-AIM-219","level":"Intermediate","scope":"Recommend from user–item interaction data.","concepts":["user/item neighbourhoods","matrix factorisation","implicit feedback","cold start"],"tier":2,"roles":"RecSys","why":"E-commerce, media, food-delivery platforms","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"New"},{"name":"Content-Based and Hybrid Recommendation","id":"CSK-AIM-220","level":"Intermediate","scope":"Recommend using item/user features and combine approaches.","concepts":["item profiles","similarity","hybrid strategies"],"tier":2,"roles":"RecSys","why":"Cold-start handling in recommenders","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"New"},{"name":"Neural Recommendation and Retrieval Models","id":"CSK-AIM-221","level":"Advanced","scope":"Build large-scale candidate generation and ranking with neural models.","concepts":["two-tower retrieval","sequence-aware recommenders","multi-stage ranking"],"tier":3,"roles":"RecSys (large platforms)","why":"Large-scale platforms only","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Graph ML","skills":[{"name":"Graph Neural Networks","id":"CSK-AIM-222","level":"Advanced","scope":"Learn on graph-structured data with message passing.","concepts":["message passing","GCN/GraphSAGE/GAT","node/edge/graph tasks"],"tier":3,"roles":"Fraud, recsys, drug discovery","why":"Specialist","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Robotics","skills":[{"name":"Robot Kinematics","id":"CSK-AIM-223","level":"Intermediate","scope":"Compute robot pose and motion from joint configurations and vice versa.","concepts":["coordinate frames","transformations","forward and inverse kinematics","Jacobians (intro)"],"tier":2,"roles":"Robotics","why":"Required for robotics roles","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"New"},{"name":"Robot Localization and SLAM","id":"CSK-AIM-224","level":"Advanced","scope":"Estimate a robot’s position and build maps from sensor data.","concepts":["odometry","sensor models","histogram/particle-filter localisation","LIDAR and visual SLAM"],"tier":2,"roles":"Robotics, autonomous vehicles","why":"Required for mobile robotics/autonomy","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"New"},{"name":"Robot Motion and Path Planning","id":"CSK-AIM-225","level":"Intermediate","scope":"Plan collision-free paths and motions for robots.","concepts":["configuration space","grid/A*-based planning","sampling-based planners (PRM, RRT)","local planning"],"tier":2,"roles":"Robotics","why":"Required for robotics roles","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"New"},{"name":"Robot Control Systems","id":"CSK-AIM-226","level":"Intermediate","scope":"Make robots follow planned trajectories with feedback control.","concepts":["feedback loops","PID control","trajectory tracking","stability basics"],"tier":2,"roles":"Robotics","why":"Required for robotics roles","ev":["J"],"aicte":"Yes","rec":"Keep — industry-required","replaces":"New"}]}]},{"name":"Cross-cutting Practice","num":7,"desc":"Shipping and governing AI systems: AI engineering and MLOps, plus responsible and trustworthy AI.","subs":[{"name":"AI engineering / MLOps","skills":[{"name":"Experiment Tracking and Model Registry","id":"CSK-AIM-227","level":"Intermediate","scope":"Record runs, metrics and artefacts and manage model versions/stages.","concepts":["run tracking","artefacts","registry","promotion stages"],"tier":2,"roles":"MLE, MLOps","why":"MLOps in 14% of ML postings; top India skill","ev":["PD","NAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-015"},{"name":"Reproducible ML: Data and Model Versioning","id":"CSK-AIM-228","level":"Intermediate","scope":"Make training reproducible through versioned data, code, configs and environments.","concepts":["dataset versioning","lineage","seeds/determinism","environment capture"],"tier":2,"roles":"MLE, MLOps","why":"Part of MLOps practice","ev":["PD"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-015"},{"name":"Model Serving and Inference","id":"CSK-AIM-229","level":"Intermediate","scope":"Deploy models for online, batch and streaming inference.","concepts":["model packaging","REST/gRPC endpoints","batch scoring","latency/throughput"],"tier":1,"roles":"MLE, AIE, MLOps","why":"Deployment is a top skill in India reports","ev":["NAS","MAS"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-015"},{"name":"ML Pipelines and Continuous Training","id":"CSK-AIM-230","level":"Intermediate","scope":"Automate data-to-model pipelines including retraining and CI/CD for ML.","concepts":["pipeline DAGs","validation gates","continuous training","CI/CD for ML"],"tier":2,"roles":"MLE, MLOps","why":"MLOps and deployment a top cross-industry skill","ev":["NAS"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-015"},{"name":"Model Monitoring and Drift Detection","id":"CSK-AIM-231","level":"Intermediate","scope":"Monitor production models and trigger action on degradation.","concepts":["data/concept drift","training–serving skew","performance monitoring","alerting"],"tier":2,"roles":"MLE, MLOps","why":"60% of AI engineers use observability","ev":["NAS","AMP"],"aicte":"No","rec":"Keep — industry-required","replaces":"CSK-AIM-015"},{"name":"Online Model Rollout and Experimentation","id":"CSK-AIM-232","level":"Intermediate","scope":"Release models safely and measure impact in production.","concepts":["shadow mode","canary","champion–challenger","online A/B for models"],"tier":3,"roles":"MLE (product companies)","why":"Product companies with live models","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-015"},{"name":"Feature Stores","id":"CSK-AIM-233","level":"Advanced","scope":"Serve consistent features to training and inference.","concepts":["offline/online stores","point-in-time correctness","feature reuse"],"tier":3,"roles":"MLE (large orgs)","why":"Large-scale ML platforms","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-015"},{"name":"Model Compression and Efficient Inference","id":"CSK-AIM-234","level":"Advanced","scope":"Make models smaller/faster with minimal accuracy loss.","concepts":["quantisation","pruning","knowledge distillation","KV cache","batching"],"tier":3,"roles":"MLE, AIE (edge, LLM cost)","why":"LLM serving cost and edge deployment","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-015"},{"name":"Distributed Model Training","id":"CSK-AIM-235","level":"Advanced","scope":"Train large models across multiple accelerators.","concepts":["data/model/pipeline parallelism","mixed precision","gradient accumulation","checkpointing"],"tier":3,"roles":"MLE (large models)","why":"Teams training large models","ev":["J"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"New"}]},{"name":"Responsible & trustworthy AI","skills":[{"name":"Fairness Assessment and Bias Mitigation","id":"CSK-AIM-236","level":"Intermediate","scope":"Measure and mitigate unfair model behaviour across groups.","concepts":["bias sources","group fairness metrics","pre/in/post-processing mitigation","trade-offs"],"tier":3,"roles":"DS (BFSI, HR, public sector)","why":"Regulated domains","ev":["J"],"aicte":"Yes","rec":"Keep — tag as specialist","replaces":"CSK-AIM-016"},{"name":"Explainable AI Techniques","id":"CSK-AIM-237","level":"Intermediate","scope":"Explain model behaviour globally and for individual predictions.","concepts":["permutation importance","PDP/ICE","SHAP","LIME","saliency maps"],"tier":2,"roles":"DS (BFSI, health)","why":"SHAP widely used to explain models to business/regulators","ev":["J"],"aicte":"Partial","rec":"Keep — industry-required","replaces":"CSK-AIM-016, CSK-AIM-007"},{"name":"AI Documentation and Governance","id":"CSK-AIM-238","level":"Intermediate","scope":"Document and govern AI systems across their lifecycle.","concepts":["model cards","datasheets","AI risk management (NIST AI RMF)","regulation landscape"],"tier":3,"roles":"AI governance, senior roles","why":"Rising with AI regulation","ev":["NAS"],"aicte":"No","rec":"Keep — tag as specialist","replaces":"CSK-AIM-016"},{"name":"Adversarial Robustness","id":"CSK-AIM-239","level":"Advanced","scope":"Assess and improve model robustness to adversarial inputs.","concepts":["adversarial examples","FGSM/PGD","defences","distribution shift"],"tier":4,"roles":"Research, AI security","why":"Mostly research","ev":["J"],"aicte":"Partial","rec":"Keep only for curriculum mapping (flag low industry use)","replaces":"CSK-AIM-016"},{"name":"Privacy-Preserving Machine Learning","id":"CSK-AIM-240","level":"Advanced","scope":"Train and use models while protecting individual data.","concepts":["differential privacy","federated learning","membership inference"],"tier":3,"roles":"Health/finance ML","why":"Federated learning/DP in regulated sectors","ev":["J"],"aicte":"Partial","rec":"Keep — tag as specialist","replaces":"CSK-AIM-016"}]}]}],"evidence":{"KAG":{"source":"Kaggle ML & DS Survey 2020 (20k+ respondents): algorithms regularly used","url":"https://businessoverbroadway.com/2021/02/14/machine-learning-algorithms-and-the-data-pros-who-use-them/"},"PD":{"source":"Analysis of 1,000 ML job postings, 2025 (PyTorch 47%, TensorFlow 39%, LLMs 21%, MLOps 14%)","url":"https://powerdrill.ai/blog/machine-learning-hiring-post-analysis"},"AMP":{"source":"Amplify Partners 2025 AI Engineering Report (RAG 70%, vector DB 65%, fine-tuning 41%, offline eval >50%)","url":"https://amplifypartners.com/blog-posts/the-2025-ai-engineering-report"},"NAS":{"source":"Nasscom–Indeed India AI talent report, May 2026 (cloud, GenAI/LLMs, MLOps, analytics top skills)","url":"https://cxotoday.com/research/skills-over-degrees-nasscom-indeed-report-reveals-indias-evolving-ai-hiring-landscape/"},"MAS":{"source":"India AI hiring skills 2026 (RAG/vector DB, LLM apps, agentic AI, MLOps; classical ML treated as baseline)","url":"https://www.masaischool.com/blog/the-ai-skills-indian-employers-are-actually-hiring-for-in-2026/"},"ONET":{"source":"O*NET 15-2051.00 Data Scientists — tasks and technology skills","url":"https://www.onetonline.org/link/summary/15-2051.00"},"DS365":{"source":"365 Data Science: 1,000 data-scientist postings (ML 69%, NLP 19%, DL 12%, CV 6%)","url":"https://365datascience.com/career-advice/data-scientist-job-market/"},"J":{"source":"Practitioner judgement (no direct survey figure found)","url":""}}};
+    const TIER_W = { 1: 4, 2: 3, 3: 2, 4: 1 };
+    const TIER_LABEL = { 1: "Core", 2: "Track-core", 3: "Specialist", 4: "Low use" };
+    const TIER_FULL = { 1: "Core: required across AI/ML roles", 2: "Track-core: required for a specific job track", 3: "Specialist: advanced or niche roles", 4: "Low industry use: academic or legacy" };
+    const STORE_KEY = "ai_skill_dag_v1_state";
+    const THEME_KEY = "ai_skill_dag_v1_theme";
+
+    let rootId = DATA.root;
+    let customHierarchy = false;
+    let weightMode = "demand";       // 'demand' | 'equal'
+    let currentPreset = "balanced";
+    let dag = {}, meta = {}, nodeDescriptions = {};
+    let leaves = {}, leafConf = {};
+    let cache = {};
+
+    function round3(x) { return Math.round(x * 1000) / 1000; }
+    function hashStr(s) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
+    function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+    function buildAIDag(mode) {
+      const nd = {}, md = {}, desc = {};
+      const eq = mode === "equal";
+      md[rootId] = { kind: "root" };
+      desc[rootId] = DATA.rootDesc;
+      const cw = [];
+      DATA.clusters.forEach(c => {
+        md[c.name] = { kind: "cluster", num: c.num, nSubs: c.subs.length, nSkills: 0, tiers: { 1: 0, 2: 0, 3: 0, 4: 0 } };
+        desc[c.name] = c.desc;
+        let ctot = 0; const sw = [];
+        c.subs.forEach(s => {
+          md[s.name] = { kind: "sub", cluster: c.name, nSkills: s.skills.length, tiers: { 1: 0, 2: 0, 3: 0, 4: 0 } };
+          let stot = 0; const kw = [];
+          s.skills.forEach(k => {
+            const w = eq ? 1 : TIER_W[k.tier];
+            stot += w; kw.push([k.name, w]);
+            md[k.name] = Object.assign({ kind: "skill", cluster: c.name, sub: s.name }, k);
+            desc[k.name] = k.scope;
+            md[s.name].tiers[k.tier]++; md[c.name].tiers[k.tier]++; md[c.name].nSkills++;
+          });
+          desc[s.name] = `${s.skills.length} skill${s.skills.length > 1 ? "s" : ""} in ${c.name}.`;
+          nd[s.name] = kw.map(([n, w]) => [n, round3(w / stot)]);
+          const sv = eq ? 1 : stot;
+          sw.push([s.name, sv]); ctot += sv;
+        });
+        nd[c.name] = sw.map(([n, w]) => [n, round3(w / ctot)]);
+        cw.push([c.name, eq ? 1 : ctot]);
+      });
+      const gtot = cw.reduce((a, [, w]) => a + w, 0);
+      nd[rootId] = cw.map(([n, w]) => [n, round3(w / gtot)]);
+      dag = nd; meta = md; nodeDescriptions = desc;
+    }
+
+    // Generic depth-based kinds for imported hierarchies
+    function inferKinds() {
+      const md = {};
+      md[rootId] = { kind: "root" };
+      const q = [[rootId, 0]];
+      while (q.length) {
+        const [n, d] = q.shift();
+        (dag[n] || []).forEach(([c]) => {
+          if (md[c]) return;
+          const isLeaf = leaves[c] !== undefined;
+          md[c] = { kind: isLeaf ? "skill" : (d === 0 ? "cluster" : "sub") };
+          q.push([c, d + 1]);
+        });
+      }
+      meta = md;
+    }
+
+    /* ----------------------------------------------------
+       PRESET PROFILES (derived from inventory attributes)
+       ---------------------------------------------------- */
+    function hasRole(k, tag) { return new RegExp("\\b" + tag + "\\b", "i").test(k.roles || ""); }
+    const PRESETS = {
+      balanced: { conf: 0.6, fn: k => ({ Foundational: 0.72, Intermediate: 0.52, Advanced: 0.32 })[k.level] ?? 0.5 },
+      graduate: { conf: 0.5, fn: k => (({ Yes: 0.62, Partial: 0.4, No: 0.12 })[k.aicte] ?? 0.3) * (k.level === "Advanced" ? 0.8 : 1) },
+      data_scientist: { conf: 0.8, fn: k => hasRole(k, "DS") || k.cluster === "Machine Learning" ? 0.82 : k.cluster === "Deep Learning" ? 0.5 : 0.22 },
+      ml_engineer: { conf: 0.8, fn: k => hasRole(k, "MLE") || hasRole(k, "MLOps") || k.sub === "AI engineering / MLOps" ? 0.85 : (k.cluster === "Machine Learning" || k.cluster === "Deep Learning") ? 0.6 : 0.22 },
+      genai_engineer: { conf: 0.8, fn: k => k.cluster === "Generative AI & LLMs" || hasRole(k, "AIE") ? 0.88 : (k.sub === "Natural language processing" || k.sub === "AI engineering / MLOps") ? 0.62 : k.cluster === "Deep Learning" ? 0.55 : 0.22 },
+      cv_robotics: { conf: 0.8, fn: k => hasRole(k, "CV") || hasRole(k, "Robotics") || k.sub === "Computer vision" || k.sub === "Robotics" ? 0.85 : k.cluster === "Deep Learning" ? 0.6 : 0.22 },
+      industry_ready: { conf: 0.95, fn: k => ({ 1: 0.92, 2: 0.85, 3: 0.72, 4: 0.55 })[k.tier] ?? 0.7 }
+    };
+
+    function applyPreset(p) {
+      const P = PRESETS[p] || PRESETS.balanced;
+      const nl = {}, nc = {};
+      Object.keys(meta).forEach(n => {
+        if (meta[n].kind !== "skill") return;
+        const k = meta[n];
+        const jitter = ((hashStr(n) % 100) / 100 - 0.5) * 0.12;
+        nl[n] = Math.round(Math.max(0.02, Math.min(0.98, P.fn(k) + jitter)) * 100) / 100;
+        nc[n] = P.conf;
+      });
+      leaves = nl; leafConf = nc; currentPreset = p;
+    }
+
+    /* ----------------------------------------------------
+       MATH ENGINE (same as reference: sigmoid N, belief B, Beta moment-matching)
+       ---------------------------------------------------- */
+    function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+    function lnGamma(x) {
+      if (x <= 0) return -Infinity;
+      let tmp = x + 5.5;
+      tmp -= (x + 0.5) * Math.log(tmp);
+      let ser = 1.000000000190015 + 76.18009172947146 / (x + 1.0) - 86.50532032941677 / (x + 2.0)
+        + 24.01409824083091 / (x + 3.0) - 1.231739572450155 / (x + 4.0)
+        + 0.1208650973866179e-2 / (x + 5.0) - 0.5395239384953e-5 / (x + 6.0);
+      return Math.log(2.5066282746310005 * ser / x) - tmp;
+    }
+
+    function betaPDF(x, alpha, beta) {
+      if (x < 0 || x > 1) return 0;
+      const cx = Math.max(1e-12, Math.min(1 - 1e-12, x));
+      const logB = lnGamma(alpha) + lnGamma(beta) - lnGamma(alpha + beta);
+      return Math.exp((alpha - 1) * Math.log(cx) + (beta - 1) * Math.log(1 - cx) - logB);
+    }
+
+    function drawBetaChart(alpha, beta, mean, nodeId) {
+      const kind = (meta[nodeId] || {}).kind;
+      const areaPath = document.getElementById("pdf-area");
+      const strokePath = document.getElementById("pdf-stroke");
+      const meanLine = document.getElementById("pdf-mean-line");
+      const meanLabel = document.getElementById("pdf-mean-label");
+      const legend = document.getElementById("chart-metrics-legend");
+      let fillGrad = "url(#leaf-curve-grad)", strokeColor = "var(--accent-blue)";
+      if (kind === "root") { fillGrad = "url(#root-curve-grad)"; strokeColor = "var(--accent-amber)"; }
+      else if (kind === "cluster") { fillGrad = "url(#domain-curve-grad)"; strokeColor = "var(--accent-purple)"; }
+      else if (kind === "sub") { fillGrad = "url(#sub-curve-grad)"; strokeColor = "var(--accent-cyan)"; }
+      areaPath.style.fill = fillGrad;
+      strokePath.style.stroke = strokeColor;
+      let maxVal = 0.001; const pts = [];
+      for (let i = 0; i <= 100; i++) {
+        const x = i / 100; let y = betaPDF(x, alpha, beta);
+        if (!isFinite(y)) y = 0;
+        y = Math.min(15, y); pts.push([x, y]); if (y > maxVal) maxVal = y;
+      }
+      let dA = "M 5 110 ", dS = "";
+      pts.forEach(([x, y], i) => {
+        const px = (5 + x * 340).toFixed(1), py = (110 - (y / maxVal) * 100).toFixed(1);
+        dA += `L ${px} ${py} `; dS += (i ? "L " : "M ") + `${px} ${py} `;
+      });
+      areaPath.setAttribute("d", dA + "L 345 110 Z");
+      strokePath.setAttribute("d", dS);
+      const xm = 5 + mean * 340;
+      meanLine.setAttribute("x1", xm.toFixed(1)); meanLine.setAttribute("x2", xm.toFixed(1));
+      meanLabel.style.display = "block";
+      meanLabel.style.left = `${(xm / 350 * 100).toFixed(1)}%`;
+      meanLabel.innerText = `μ: ${mean.toFixed(2)}`;
+      legend.innerText = `α: ${alpha.toFixed(1)}  β: ${beta.toFixed(1)}`;
+    }
+
+    function compute(node) {
+      if (cache[node] !== undefined) return cache[node];
+      if (leaves[node] !== undefined) {
+        const V = leaves[node];
+        const C = leafConf[node] !== undefined ? leafConf[node] : 0.85;
+        const mean = Math.max(0.001, Math.min(0.999, V));
+        const K = 2 + 98 * C * C;
+        const res = { N: V, B: V, C, mean, variance: (mean * (1 - mean)) / (K + 1), alpha: mean * K, beta: (1 - mean) * K };
+        cache[node] = res; return res;
+      }
+      let wN = 0, wB = 0, tW = 0, wV = 0;
+      (dag[node] || []).forEach(([child, w]) => {
+        const s = compute(child);
+        wN += s.N * w; wB += s.B * w; wV += s.variance * w; tW += w;
+      });
+      if (!tW) tW = 1;
+      const N = sigmoid(wN);
+      const B = wB / tW;
+      const mean = Math.max(0.001, Math.min(0.999, B));
+      const variance = Math.max(1e-6, Math.min(wV / tW, mean * (1 - mean) - 0.0001));
+      const K = (mean * (1 - mean)) / variance - 1;
+      const C = Math.min(1, Math.max(0, Math.sqrt(Math.max(0, (K - 2) / 98))));
+      const res = { N, B, C, mean, variance, alpha: mean * K, beta: (1 - mean) * K };
+      cache[node] = res; return res;
+    }
+
+    function recompute() { cache = {}; Object.keys(dag).forEach(k => compute(k)); }
+
+    /* ----------------------------------------------------
+       STATE
+       ---------------------------------------------------- */
+    function saveState(silent) {
+      if (customHierarchy) return;
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify({ leaves, leafConf, weightMode, preset: currentPreset }));
+        if (!silent) showToast("Ratings saved in this browser");
+      } catch (e) { /* storage unavailable */ }
+    }
+    let saveTimer = null;
+    function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(() => saveState(true), 400); }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (!raw) return false;
+        const s = JSON.parse(raw);
+        if (s.weightMode === "equal") weightMode = "equal";
+        buildAIDag(weightMode);
+        applyPreset(s.preset && PRESETS[s.preset] ? s.preset : "balanced");
+        if (s.leaves) Object.keys(s.leaves).forEach(k => { if (leaves[k] !== undefined) leaves[k] = s.leaves[k]; });
+        if (s.leafConf) Object.keys(s.leafConf).forEach(k => { if (leafConf[k] !== undefined) leafConf[k] = s.leafConf[k]; });
+        return true;
+      } catch (e) { return false; }
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("alert-toast");
+      document.getElementById("toast-message").innerText = message;
+      toast.classList.add("active");
+      if (window.toastTimeout) clearTimeout(window.toastTimeout);
+      window.toastTimeout = setTimeout(() => toast.classList.remove("active"), 2500);
+    }
+
+    /* ----------------------------------------------------
+       SIDEBAR / PRESETS / ACTIONS
+       ---------------------------------------------------- */
+    let isLeftSidebarOpen = false;
+    function toggleLeftSidebar(force) {
+      isLeftSidebarOpen = typeof force === "boolean" ? force : !isLeftSidebarOpen;
+      document.getElementById("left-sidebar-panel").classList.toggle("active", isLeftSidebarOpen);
+      document.body.classList.toggle("left-open", isLeftSidebarOpen);
+      if (isLeftSidebarOpen && isNarrow()) closeInspector(true);
+    }
+    function isNarrow() { return window.matchMedia("(max-width: 720px)").matches; }
+
+    function loadPreset() {
+      const p = document.getElementById("preset-select").value;
+      if (customHierarchy) {
+        const base = { balanced: 0.5, graduate: 0.38, data_scientist: 0.55, ml_engineer: 0.55, genai_engineer: 0.55, cv_robotics: 0.5, industry_ready: 0.8 }[p] || 0.5;
+        Object.keys(leaves).forEach(k => {
+          leaves[k] = Math.max(0.05, Math.min(0.95, base + ((hashStr(k) % 100) / 100 - 0.5) * 0.3));
+          leafConf[k] = 0.85;
+        });
+      } else {
+        applyPreset(p);
+      }
+      refreshAll();
+      saveState(true);
+      showToast(`Profile applied: ${document.getElementById("preset-select").selectedOptions[0].text}`);
+    }
+
+    function setWeightMode() {
+      const m = document.getElementById("weight-select").value;
+      if (customHierarchy) { showToast("Weight modes apply to the AI inventory only"); document.getElementById("weight-select").value = weightMode; return; }
+      weightMode = m;
+      const keepL = { ...leaves }, keepC = { ...leafConf };
+      buildAIDag(weightMode);
+      leaves = keepL; leafConf = keepC;
+      recompute(); renderNetwork(true); updateUI();
+      if (selectedNodeId) selectNodeById(selectedNodeId, true);
+      saveState(true);
+      showToast(m === "equal" ? "Edge weights: equal per parent" : "Edge weights: industry demand by tier");
+    }
+
+    function resetToDefaults() {
+      if (!confirm("Reset every rating and weight back to the default balanced profile?")) return;
+      rootId = DATA.root; customHierarchy = false; weightMode = "demand";
+      document.getElementById("weight-select").value = "demand";
+      document.getElementById("preset-select").value = "balanced";
+      document.getElementById("crown-root-title").innerText = rootId;
+      buildAIDag(weightMode); applyPreset("balanced");
+      selectedNodeId = null; closeInspector(true);
+      recompute(); renderNetwork(true); updateUI(); saveState(true);
+      showToast("Reset to the default profile");
+    }
+
+    let downloadsCap = null;
+    async function exportData() {
+      const payload = JSON.stringify({ root: rootId, preset: currentPreset, weightMode, leaves, leafConf, exportDate: new Date().toISOString() }, null, 2);
+      const filename = "ai_skill_profile.json";
+      if (downloadsCap) {
+        try { await downloadsCap.save({ filename, data: payload }); showToast("Profile exported"); }
+        catch (e) { if (e && e.code !== "declined") showToast("Export isn’t available in this view"); }
+        return;
+      }
+      if (window.claude) { showToast("Export isn’t available in this view"); return; }
+      const a = document.createElement("a");
+      a.href = "data:application/json;charset=utf-8," + encodeURIComponent(payload);
+      a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      showToast("Profile exported");
+    }
+
+    function triggerImport() { document.getElementById("import-file").click(); }
+    function importData(event) {
+      const file = event.target.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = e => { try { routeDroppedJson(JSON.parse(e.target.result)); } catch (err) { showToast("That file isn’t valid JSON"); } };
+      r.readAsText(file); event.target.value = "";
+    }
+
+    function restoreProfile(obj) {
+      let n = 0;
+      Object.keys(obj.leaves).forEach(k => { if (leaves[k] !== undefined) { leaves[k] = +obj.leaves[k]; n++; } });
+      if (obj.leafConf) Object.keys(obj.leafConf).forEach(k => { if (leafConf[k] !== undefined) leafConf[k] = +obj.leafConf[k]; });
+      refreshAll(); saveState(true);
+      showToast(n ? `Imported ratings for ${n} skills` : "No skill names in that file match this DAG");
+    }
+
+    /* ----------------------------------------------------
+       GRAPH
+       ---------------------------------------------------- */
+    let network = null;
+    const nodesDataSet = new vis.DataSet();
+    const edgesDataSet = new vis.DataSet();
+    let selectedNodeId = null;
+    let activeHighlightCluster = null;
+    let layoutMode = "organic";
+    let isPhysicsFrozen = false;
+    let springBase = 110;
+    const FONT_FACE = "Outfit, Inter, system-ui, -apple-system, Segoe UI, sans-serif";
+    const SPRING_MULT = { root: 2.4, cluster: 1.35, sub: 0.62 };
+
+    function hslFor(kind, v) {
+      if (kind === "skill") return { h: 217, s: 90, l: Math.round(26 + 40 * v) };
+      if (kind === "sub") return { h: 188, s: 82, l: Math.round(24 + 40 * v) };
+      return { h: 270, s: 90, l: Math.round(28 + 40 * v) };
+    }
+    function kindOf(id) { return (meta[id] || {}).kind || (leaves[id] !== undefined ? "skill" : "sub"); }
+    function scoreOf(id) { return leaves[id] !== undefined ? leaves[id] : (cache[id] || { B: 0.5 }).B; }
+
+    function getNodeColor(id, isDimmed) {
+      const kind = kindOf(id);
+      let hsl;
+      if (kind === "root") hsl = isLight() ? "38, 92%, 42%" : "38, 92%, 50%";
+      else { const c = hslFor(kind, scoreOf(id)); hsl = `${c.h}, ${c.s}%, ${c.l}%`; }
+      if (isDimmed) return { background: `hsla(${hsl}, 0.06)`, border: `hsla(${hsl}, 0.14)`, highlight: { background: `hsla(${hsl}, 0.3)`, border: `hsla(${hsl}, 0.5)` }, hover: { background: `hsla(${hsl}, 0.3)`, border: `hsla(${hsl}, 0.5)` } };
+      return { background: `hsla(${hsl}, 1)`, border: `hsla(${hsl}, 1)`, highlight: { background: `hsla(${hsl}, 1)`, border: `hsla(${hsl}, 1)` }, hover: { background: `hsla(${hsl}, 1)`, border: `hsla(${hsl}, 1)` } };
+    }
+
+    function getHighlightedPathElements(nodeId) {
+      const hn = new Set(), he = new Set();
+      if (!nodeId) return { nodes: hn, edges: he };
+      const parentsOf = {};
+      Object.keys(dag).forEach(p => dag[p].forEach(([c]) => { (parentsOf[c] = parentsOf[c] || []).push(p); }));
+      (function up(cur) { hn.add(cur); (parentsOf[cur] || []).forEach(p => { he.add(`${cur}->${p}`); up(p); }); })(nodeId);
+      (function down(cur) { hn.add(cur); (dag[cur] || []).forEach(([c]) => { he.add(`${c}->${cur}`); down(c); }); })(nodeId);
+      return { nodes: hn, edges: he };
+    }
+
+    function descendants(id) {
+      const s = new Set([id]);
+      (function walk(n) { (dag[n] || []).forEach(([c]) => { s.add(c); walk(c); }); })(id);
+      return s;
+    }
+
+    function isLight() { return document.body.classList.contains("light-theme"); }
+
+    function buildNode(id, hl, anySel) {
+      const kind = kindOf(id);
+      const isHl = hl.nodes.has(id) || (activeHighlightCluster && activeHighlightCluster.has(id));
+      const dim = (anySel || activeHighlightCluster) && !isHl;
+      const light = isLight();
+      let txt = dim ? (light ? "rgba(15,23,42,0.14)" : "rgba(255,255,255,0.14)") : (light ? "#0f172a" : "#ffffff");
+      if (layoutMode === "tree" && kind === "skill" && !dim) txt = leaves[id] > 0.55 ? "#06142e" : "#ffffff";
+      const r = cache[id] || { N: 0, B: 0 };
+      const tree = layoutMode === "tree";
+      let label, size, fsize;
+      if (kind === "root") { label = `<b>${id}</b>\nScore: <b>${(r.B * 100).toFixed(0)}%</b>`; size = 38; fsize = 17; }
+      else if (kind === "cluster") { label = `<b>${id}</b>\nN: <b>${r.N.toFixed(2)}</b>  B: <b>${r.B.toFixed(2)}</b>`; size = 26; fsize = 14; }
+      else if (kind === "sub") { label = tree ? `<b>${id}</b>  ${r.B.toFixed(2)}` : `<b>${id}</b>\nB: <b>${r.B.toFixed(2)}</b>`; size = 16; fsize = 12; }
+      else { const v = leaves[id]; label = tree ? `${id}  <b>${v.toFixed(2)}</b>` : `<b>${id}</b>\n${v.toFixed(2)}`; size = 9; fsize = tree ? 12 : 11; }
+      const c = kind === "root" ? null : hslFor(kind, scoreOf(id));
+      const glow = kind === "root" ? "rgba(245,158,11,0.45)" : `hsla(${c.h},${c.s}%,${c.l}%,0.45)`;
+      const pill = tree && kind === "skill";
+      return {
+        id, label, shape: pill ? "box" : "dot", size,
+        margin: pill ? { top: 4, bottom: 4, left: 8, right: 8 } : undefined,
+        shapeProperties: { borderRadius: 6 },
+        color: getNodeColor(id, dim),
+        font: { color: txt, size: fsize, face: FONT_FACE, multi: "html", strokeWidth: 0 },
+        widthConstraint: (!tree && kind !== "root") ? { maximum: kind === "skill" ? 130 : 170 } : false,
+        borderWidth: isHl ? 3 : 1.5,
+        shadow: isHl ? { enabled: true, color: glow, size: 16 } : { enabled: kind !== "skill" },
+        scaling: { label: { drawThreshold: kind === "skill" ? 7 : 4 } }
+      };
+    }
+
+    function renderNetwork(full) {
+      const hl = getHighlightedPathElements(selectedNodeId);
+      const anySel = selectedNodeId !== null;
+      const light = isLight();
+      const nodes = Object.keys(meta).map(id => buildNode(id, hl, anySel));
+      const edges = [];
+      Object.keys(dag).forEach(p => {
+        const pk = kindOf(p);
+        dag[p].forEach(([child, w]) => {
+          const eid = `${child}->${p}`;
+          const isHl = hl.edges.has(eid) || (activeHighlightCluster && activeHighlightCluster.has(child) && activeHighlightCluster.has(p));
+          const dim = (anySel || activeHighlightCluster) && !isHl;
+          const showLabel = isHl || (pk === "root" && !dim);
+          edges.push({
+            id: eid, from: child, to: p, arrows: { to: { enabled: true, scaleFactor: pk === "sub" ? 0.4 : 0.6 } },
+            label: showLabel ? String(w) : "",
+            length: springBase * (SPRING_MULT[pk] || 1),
+            color: {
+              color: isHl ? "rgba(59,130,246,0.9)" : dim ? (light ? "rgba(15,23,42,0.03)" : "rgba(255,255,255,0.025)") : (light ? "rgba(15,23,42,0.16)" : "rgba(255,255,255,0.11)"),
+              highlight: "rgba(59,130,246,0.9)", hover: "rgba(59,130,246,0.6)"
+            },
+            width: isHl ? 2.5 : (pk === "root" ? 2 : pk === "cluster" ? 1.4 : 1),
+            font: { color: showLabel ? (light ? "rgba(15,23,42,0.55)" : "rgba(255,255,255,0.5)") : "transparent", size: 10, strokeWidth: 0, face: "JetBrains Mono, ui-monospace, monospace" }
+          });
+        });
+      });
+
+      if (!network || full) {
+        nodesDataSet.clear(); edgesDataSet.clear();
+        nodesDataSet.add(nodes); edgesDataSet.add(edges);
+        if (network && layoutMode === "tree") applyTreePositions();
+      } else {
+        nodesDataSet.update(nodes); edgesDataSet.update(edges);
+      }
+
+      if (!network) {
+        const container = document.getElementById("network-canvas");
+        network = new vis.Network(container, { nodes: nodesDataSet, edges: edgesDataSet }, {
+          physics: {
+            enabled: true,
+            solver: "forceAtlas2Based",
+            forceAtlas2Based: { gravitationalConstant: -120, centralGravity: 0.012, springLength: springBase, springConstant: 0.08, damping: 0.45, avoidOverlap: 0.6 },
+            stabilization: { iterations: 400, updateInterval: 40 }
+          },
+          nodes: { shape: "dot", font: { face: FONT_FACE, size: 13, multi: "html" } },
+          edges: { smooth: { type: "continuous", roundness: 0.3 } },
+          interaction: { hover: true, selectConnectedEdges: false, tooltipDelay: 250 }
+        });
+        network.on("click", handleGraphClick);
+        network.once("stabilizationIterationsDone", () => fitGraphCamera());
+      }
+    }
+
+    // Tidy left-to-right tree: AI → cluster → sub-cluster → skill, leaves stacked in inventory order
+    function treePositions() {
+      const pos = {}; let y = 0;
+      const X = [0, 320, 680, 1120];
+      const GAP_AFTER = { 1: 44, 2: 22 };
+      (function place(n, d) {
+        const kids = dag[n] || [];
+        const x = d < X.length ? X[d] : X[X.length - 1] + (d - X.length + 1) * 420;
+        if (!kids.length) { pos[n] = { x, y }; y += 34; return; }
+        kids.forEach(([c]) => place(c, d + 1));
+        const ys = kids.map(([c]) => pos[c].y);
+        pos[n] = { x, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+        y += GAP_AFTER[d] || 0;
+      })(rootId, 0);
+      // skills at depth < 3 (imported trees) still use depth x; nothing else to do
+      return pos;
+    }
+    function applyTreePositions() {
+      const pos = treePositions();
+      nodesDataSet.update(Object.keys(pos).map(id => ({ id, x: pos[id].x, y: pos[id].y })));
+    }
+
+    function setLayoutMode(mode) {
+      if (layoutMode === mode) return;
+      layoutMode = mode;
+      if (!network) return;
+      if (mode === "tree") {
+        network.setOptions({
+          physics: { enabled: false },
+          edges: { smooth: { type: "cubicBezier", forceDirection: "horizontal", roundness: 0.6 } }
+        });
+        renderNetwork();
+        applyTreePositions();
+      } else {
+        network.setOptions({
+          edges: { smooth: { type: "continuous", roundness: 0.3 } },
+          physics: { enabled: !isPhysicsFrozen }
+        });
+        renderNetwork();
+      }
+      document.getElementById("layout-label").innerText = mode === "tree" ? "Organic layout" : "Tree layout";
+      setTimeout(fitGraphCamera, 400);
+    }
+
+    function toggleFreezePhysics() {
+      if (!network || layoutMode === "tree") { showToast("The tree layout has no simulation to pause"); return; }
+      isPhysicsFrozen = !isPhysicsFrozen;
+      network.setOptions({ physics: { enabled: !isPhysicsFrozen } });
+      const btn = document.getElementById("freeze-physics-btn");
+      btn.innerHTML = isPhysicsFrozen
+        ? `<i data-lucide="play" style="width:12px; height:12px;"></i> Resume sim`
+        : `<i data-lucide="pause" style="width:12px; height:12px;"></i> Pause sim`;
+      lucide.createIcons();
+    }
+
+    function fitGraphCamera() { if (network) network.fit({ animation: { duration: 800, easingFunction: "easeInOutQuad" } }); }
+
+    function updatePhysicsOption(option, val) {
+      if (!network) return;
+      const v = parseFloat(val);
+      if (option === "spacing") { document.getElementById("val-physics-spacing").innerText = val; network.setOptions({ physics: { forceAtlas2Based: { gravitationalConstant: -v } } }); }
+      else if (option === "gravity") { document.getElementById("val-physics-gravity").innerText = val; network.setOptions({ physics: { forceAtlas2Based: { centralGravity: v } } }); }
+      else if (option === "spring") {
+        document.getElementById("val-physics-spring").innerText = val;
+        springBase = v;
+        edgesDataSet.update(edgesDataSet.get().map(e => ({ id: e.id, length: springBase * (SPRING_MULT[kindOf(e.to)] || 1) })));
+      }
+    }
+
+    /* ----------------------------------------------------
+       INSPECTOR
+       ---------------------------------------------------- */
+    function handleGraphClick(p) {
+      if (p.nodes.length) selectNodeById(p.nodes[0]);
+      else if (selectedNodeId) closeInspector();
+    }
+
+    function selectNodeByName(name) {
+      selectNodeById(name);
+      if (!network) return;
+      let ox = 0, oy = 0;
+      if (isNarrow()) oy = -window.innerHeight * 0.3;
+      else { ox = -200 + (isLeftSidebarOpen ? 190 : 0); }
+      network.focus(name, { scale: kindOf(name) === "skill" ? 1.1 : 0.8, offset: { x: ox, y: oy }, animation: { duration: 800, easingFunction: "easeInOutQuad" } });
+    }
+
+    const BADGE = { root: ["Root", "badge-root"], cluster: ["Cluster", "badge-parent"], sub: ["Sub-cluster", "badge-sub"], skill: ["Skill", "badge-leaf"] };
+    const CHILD_TITLE = { root: "Clusters", cluster: "Sub-clusters", sub: "Skills" };
+
+    function tierBar(tiers) {
+      const tot = Object.values(tiers).reduce((a, b) => a + b, 0) || 1;
+      const seg = [1, 2, 3, 4].map(t => tiers[t] ? `<span class="tier-seg tier-${t}" style="flex:${tiers[t]}" title="${TIER_LABEL[t]}: ${tiers[t]}"></span>` : "").join("");
+      const leg = [1, 2, 3, 4].map(t => `<span class="tier-key"><i class="tier-dot tier-${t}"></i>${TIER_LABEL[t]} ${tiers[t] || 0}</span>`).join("");
+      return `<div class="meta-block"><div class="meta-label">Skills by industry tier</div><div class="tier-bar">${seg}</div><div class="tier-legend">${leg}</div></div>`;
+    }
+
+    function pathCrumbs(id) {
+      const m = meta[id] || {};
+      const parts = [rootId];
+      if (m.kind === "cluster") parts.push(id);
+      if (m.kind === "sub") parts.push(m.cluster, id);
+      if (m.kind === "skill") parts.push(m.cluster, m.sub, id);
+      if (parts.length < 2 || !m.kind) return "";
+      return `<nav class="crumbs" aria-label="Path">${parts.map((p, i) => i === parts.length - 1 ? `<span>${esc(p)}</span>` : `<button type="button" data-goto="${esc(p)}">${esc(p)}</button>`).join('<span class="crumb-sep">›</span>')}</nav>`;
+    }
+
+    function renderMeta(id) {
+      const m = meta[id] || {};
+      const box = document.getElementById("inspect-meta");
+      let h = pathCrumbs(id);
+      if (m.kind === "skill" && m.id) {
+        const aicteCls = { Yes: "chip-good", Partial: "chip-mid", No: "chip-bad" }[m.aicte] || "";
+        h += `<div class="chips">
+          <span class="chip chip-id">${esc(m.id)}</span>
+          <span class="chip">${esc(m.level)}</span>
+          <span class="chip tier-chip tier-${m.tier}" title="${esc(TIER_FULL[m.tier])}">${TIER_LABEL[m.tier]}</span>
+          <span class="chip ${aicteCls}">AICTE: ${esc(m.aicte)}</span>
+        </div>`;
+        if (m.concepts && m.concepts.length) h += `<div class="meta-block"><div class="meta-label">Concepts kept inside</div><div class="concepts">${m.concepts.map(c => `<span class="concept">${esc(c)}</span>`).join("")}</div></div>`;
+        h += `<div class="meta-grid">
+          <div><div class="meta-label">Primary roles</div><div class="meta-val">${esc(m.roles || "—")}</div></div>
+          <div><div class="meta-label">Recommendation</div><div class="meta-val">${esc(m.rec)}</div></div>
+          <div><div class="meta-label">Replaces v0.1</div><div class="meta-val">${esc(m.replaces)}</div></div>
+        </div>`;
+        const evs = (m.ev || []).map(k => {
+          const e = DATA.evidence[k];
+          if (!e) return esc(k);
+          return e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener" title="${esc(e.source)}">${esc(k)}</a>` : `<span title="${esc(e.source)}">${esc(k)}</span>`;
+        }).join(", ");
+        h += `<div class="meta-block"><div class="meta-label">Evidence</div><div class="meta-val">${esc(m.why)} <span class="ev-keys">(${evs})</span></div></div>`;
+      } else if (m.tiers) {
+        h += tierBar(m.tiers);
+      } else if (m.kind === "root" && !customHierarchy) {
+        const t = { 1: 0, 2: 0, 3: 0, 4: 0 };
+        Object.values(meta).forEach(x => { if (x.kind === "skill" && x.tier) t[x.tier]++; });
+        h += tierBar(t);
+      }
+      box.innerHTML = h;
+      box.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); selectNodeByName(b.dataset.goto); }));
+    }
+
+    function fillMetrics(id) {
+      const s = cache[id] || { N: 0.5, B: 0.5, C: 0.85, mean: 0.5, variance: 0.05, alpha: 2, beta: 2 };
+      const set = (k, v) => { document.getElementById(`inspect-val-${k}`).innerText = v.toFixed(3); document.getElementById(`inspect-bar-${k}`).style.width = `${v * 100}%`; };
+      set("n", s.N); set("b", s.B); set("c", s.C);
+      const sd = Math.sqrt(s.variance || 0);
+      document.getElementById("inspect-val-beta").innerText = `${s.mean.toFixed(3)} ± ${sd.toFixed(3)}`;
+      document.getElementById("inspect-bar-beta-mean").style.width = `${s.mean * 100}%`;
+      const rMin = Math.max(0, (s.mean - sd) * 100);
+      document.getElementById("inspect-bar-beta-range").style.left = `${rMin.toFixed(1)}%`;
+      document.getElementById("inspect-bar-beta-range").style.width = `${Math.min(100 - rMin, 2 * sd * 100).toFixed(1)}%`;
+      drawBetaChart(s.alpha, s.beta, s.mean, id);
+      return s;
+    }
+
+    function selectNodeById(id, keepView) {
+      if (!meta[id]) return;
+      selectedNodeId = id;
+      renderNetwork();
+      const kind = kindOf(id);
+      const badge = document.getElementById("inspect-badge");
+      badge.innerText = BADGE[kind][0];
+      badge.className = "inspector-badge " + BADGE[kind][1];
+      document.getElementById("inspect-name").innerText = id;
+      document.getElementById("inspect-desc").innerText = nodeDescriptions[id] || "No description provided.";
+      renderMeta(id);
+      const s = fillMetrics(id);
+
+      const sliderCard = document.getElementById("leaf-inputs-card");
+      if (kind === "skill") {
+        sliderCard.style.display = "flex";
+        document.getElementById("val-slider").value = leaves[id];
+        document.getElementById("val-slider-num").innerText = leaves[id].toFixed(2);
+        document.getElementById("conf-slider").value = s.C;
+        document.getElementById("conf-slider-num").innerText = s.C.toFixed(2);
+      } else sliderCard.style.display = "none";
+
+      const inCard = document.getElementById("parent-explore-card");
+      const listIn = document.getElementById("explore-list-in");
+      listIn.innerHTML = "";
+      if (kind === "skill") inCard.style.display = "none";
+      else {
+        inCard.style.display = "flex";
+        document.getElementById("explore-title-in").innerText = `Calculated from ${(CHILD_TITLE[kind] || "children").toLowerCase()}`;
+        dag[id].slice().sort((a, b) => b[1] - a[1]).forEach(([child, w]) => {
+          const item = document.createElement("button");
+          item.type = "button"; item.className = "explore-item";
+          item.onclick = e => { e.stopPropagation(); selectNodeByName(child); };
+          item.innerHTML = `<span class="explore-name">${esc(child)} <small style="color:var(--text-muted);font-size:0.65rem;">(wt: ${w})</small></span><span class="explore-score">${scoreOf(child).toFixed(2)}</span>`;
+          listIn.appendChild(item);
+        });
+      }
+
+      const listOut = document.getElementById("explore-list-out");
+      listOut.innerHTML = "";
+      let has = false;
+      Object.keys(dag).forEach(p => dag[p].forEach(([c, w]) => {
+        if (c !== id) return;
+        has = true;
+        const item = document.createElement("button");
+        item.type = "button"; item.className = "explore-item";
+        item.onclick = e => { e.stopPropagation(); selectNodeByName(p); };
+        item.innerHTML = `<span class="explore-name">${esc(p)} <small style="color:var(--text-muted);font-size:0.65rem;">(wt: ${w})</small></span><span class="explore-score" style="color:var(--accent-purple);">${(cache[p] || { B: 0 }).B.toFixed(2)}</span>`;
+        listOut.appendChild(item);
+      }));
+      if (!has) listOut.innerHTML = `<div style="font-size:0.75rem; color:var(--text-muted); padding:6px;">This is the root node, so it feeds nothing else.</div>`;
+
+      document.getElementById("inspector-panel").classList.add("active");
+      if (isNarrow() && isLeftSidebarOpen) toggleLeftSidebar(false);
+      if (!keepView) document.querySelector("#inspector-panel .inspector-content").scrollTop = 0;
+    }
+
+    function closeInspector(noRender) {
+      selectedNodeId = null;
+      document.getElementById("inspector-panel").classList.remove("active");
+      if (!noRender) renderNetwork();
+    }
+
+    function adjustLeafValue() {
+      if (!selectedNodeId || leaves[selectedNodeId] === undefined) return;
+      const v = parseFloat(document.getElementById("val-slider").value);
+      leaves[selectedNodeId] = v;
+      document.getElementById("val-slider-num").innerText = v.toFixed(2);
+      recompute(); renderNetwork(); updateUI(); fillMetrics(selectedNodeId); saveSoon();
+    }
+    function adjustLeafConfidence() {
+      if (!selectedNodeId || leaves[selectedNodeId] === undefined) return;
+      const v = parseFloat(document.getElementById("conf-slider").value);
+      leafConf[selectedNodeId] = v;
+      document.getElementById("conf-slider-num").innerText = v.toFixed(2);
+      recompute(); renderNetwork(); updateUI(); fillMetrics(selectedNodeId); saveSoon();
+    }
+    function setLeafSlider(type, value) {
+      document.getElementById(type === "val" ? "val-slider" : "conf-slider").value = value;
+      type === "val" ? adjustLeafValue() : adjustLeafConfidence();
+    }
+
+    function refreshAll() {
+      recompute(); renderNetwork(); updateUI();
+      if (selectedNodeId) selectNodeById(selectedNodeId, true);
+    }
+
+    /* ----------------------------------------------------
+       LEFT HUD
+       ---------------------------------------------------- */
+    function updateUI() {
+      const r = cache[rootId] || { N: 0, B: 0, C: 1 };
+      document.getElementById("crown-n").innerText = `N: ${r.N.toFixed(2)}`;
+      document.getElementById("crown-b").innerText = `B: ${r.B.toFixed(2)}`;
+      document.getElementById("crown-c").innerText = `C: ${r.C.toFixed(2)}`;
+      document.getElementById("crown-radial-text").innerText = `${Math.round(r.B * 100)}%`;
+      document.getElementById("crown-radial-fill").style.strokeDashoffset = 220 - r.B * 220;
+
+      let hv = -1, lv = 2, hn = "", ln = "";
+      Object.keys(leaves).forEach(k => { const v = leaves[k]; if (v > hv) { hv = v; hn = k; } if (v < lv) { lv = v; ln = k; } });
+      document.getElementById("stat-high-val").innerText = hv.toFixed(2);
+      document.getElementById("stat-high-label").innerText = hn;
+      document.getElementById("stat-low-val").innerText = lv.toFixed(2);
+      document.getElementById("stat-low-label").innerText = ln;
+
+      const list = document.getElementById("category-list");
+      list.innerHTML = "";
+      (dag[rootId] || []).forEach(([k, w]) => {
+        const s = cache[k] || { N: 0.5, B: 0.5, mean: 0.5, variance: 0.05 };
+        const sd = Math.sqrt(s.variance || 0);
+        const rMin = Math.max(0, (s.mean - sd) * 100), rW = Math.min(100 - rMin, 2 * sd * 100);
+        const m = meta[k] || {};
+        const count = m.nSkills ? `<span class="cat-count">${m.nSubs} sub · ${m.nSkills} skills</span>` : "";
+        const card = document.createElement("button");
+        card.type = "button"; card.className = "category-card";
+        card.onclick = () => selectNodeByName(k);
+        card.onmouseenter = () => highlightClusterInGraph(k);
+        card.onmouseleave = () => clearClusterHighlight();
+        card.innerHTML = `
+          <div class="category-header" style="margin-bottom: 4px;">
+            <span class="category-name" style="font-size:0.8rem; font-weight:700; font-family:var(--font-display);">${esc(k)} ${count}</span>
+            <span class="category-badge" style="font-size:0.62rem; color:var(--text-secondary); font-family:var(--font-mono); font-weight:600; white-space:nowrap;">
+              N: <span style="color:var(--accent-rose);">${s.N.toFixed(2)}</span>
+              B: <span style="color:var(--accent-blue);">${s.B.toFixed(2)}</span>
+              β: <span style="color:var(--accent-amber);">${s.mean.toFixed(2)}±${sd.toFixed(2)}</span>
+            </span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+            <div class="linear-meter" style="height:3px;" title="Neural (N) score"><div class="linear-fill" style="width:${s.N * 100}%; background:linear-gradient(90deg, var(--accent-rose), var(--accent-purple)); height:100%;"></div></div>
+            <div class="linear-meter" style="height:3px;" title="Belief (B) score"><div class="linear-fill" style="width:${s.B * 100}%; background:linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); height:100%;"></div></div>
+            <div class="linear-meter" style="height:4.5px; position:relative;" title="Beta mean (μ) and ±σ spread">
+              <div style="position:absolute; height:100%; background:rgba(245,158,11,0.25); border-left:1px solid rgba(245,158,11,0.4); border-right:1px solid rgba(245,158,11,0.4); left:${rMin.toFixed(1)}%; width:${rW.toFixed(1)}%;"></div>
+              <div class="linear-fill" style="width:${s.mean * 100}%; background:linear-gradient(90deg, #f59e0b, #d97706); height:100%;"></div>
+            </div>
+          </div>`;
+        list.appendChild(card);
+      });
+    }
+
+    function highlightClusterInGraph(cat) { if (!dag[cat] || selectedNodeId) return; activeHighlightCluster = descendants(cat); renderNetwork(); }
+    function clearClusterHighlight() { if (!activeHighlightCluster) return; activeHighlightCluster = null; renderNetwork(); }
+
+    /* ----------------------------------------------------
+       SEARCH
+       ---------------------------------------------------- */
+    const searchInput = document.getElementById("search-input");
+    const searchSuggestions = document.getElementById("search-suggestions");
+    const TYPE_TAG = { root: ["Root", "type-category"], cluster: ["Cluster", "type-category"], sub: ["Sub-cluster", "type-sub"], skill: ["Skill", "type-leaf"] };
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.toLowerCase().trim();
+      if (!q) { searchSuggestions.classList.remove("active"); return; }
+      const all = Object.keys(meta);
+      const matches = all.filter(k => k.toLowerCase().includes(q) || ((meta[k].id || "").toLowerCase() === q) || (meta[k].concepts || []).some(c => c.toLowerCase().includes(q)))
+        .sort((a, b) => (b.toLowerCase().includes(q) - a.toLowerCase().includes(q)))
+        .slice(0, 12);
+      searchSuggestions.innerHTML = "";
+      if (!matches.length) {
+        searchSuggestions.innerHTML = `<div class="suggestion-item" style="cursor:default; color:var(--text-muted);">No skill, sub-cluster or concept matches “${esc(searchInput.value)}”</div>`;
+        searchSuggestions.classList.add("active"); return;
+      }
+      matches.forEach(m => {
+        const [tag, cls] = TYPE_TAG[kindOf(m)];
+        const viaConcept = !m.toLowerCase().includes(q);
+        const item = document.createElement("button");
+        item.type = "button"; item.className = "suggestion-item";
+        item.onclick = () => { selectNodeByName(m); searchInput.value = m; searchSuggestions.classList.remove("active"); };
+        item.innerHTML = `<span class="suggestion-label">${esc(m)}${viaConcept ? ` <small style="color:var(--text-muted);">(concept)</small>` : ""}</span><span class="suggestion-type ${cls}">${tag}</span>`;
+        searchSuggestions.appendChild(item);
+      });
+      searchSuggestions.classList.add("active");
+    });
+    document.addEventListener("click", e => { if (!e.target.closest(".search-box")) searchSuggestions.classList.remove("active"); });
+
+    /* ----------------------------------------------------
+       THEME
+       ---------------------------------------------------- */
+    function getStoredTheme() { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } }
+    function resolveTheme() {
+      const attr = document.documentElement.getAttribute("data-theme");
+      if (attr === "light" || attr === "dark") return attr;
+      const saved = getStoredTheme();
+      if (saved === "light" || saved === "dark") return saved;
+      return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }
+    function applyTheme(t) {
+      document.body.classList.toggle("light-theme", t === "light");
+      updateThemeIcon();
+      if (network) { renderNetwork(); if (selectedNodeId) selectNodeById(selectedNodeId, true); }
+    }
+    function toggleTheme() {
+      const next = isLight() ? "dark" : "light";
+      try { localStorage.setItem(THEME_KEY, next); } catch (e) { }
+      applyTheme(next);
+    }
+    function updateThemeIcon() {
+      const icon = document.getElementById("theme-toggle-icon");
+      if (!icon) return;
+      const holder = icon.parentElement;
+      holder.innerHTML = `<i id="theme-toggle-icon" data-lucide="${isLight() ? "moon" : "sun"}"></i>`;
+      lucide.createIcons();
+    }
+    window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (!getStoredTheme()) applyTheme(resolveTheme()); });
+    new MutationObserver(() => applyTheme(resolveTheme())).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+    /* ----------------------------------------------------
+       HIERARCHY JSON LOADER (kept from reference, schema-tolerant)
+       ---------------------------------------------------- */
+    function triggerHierarchy() { document.getElementById("hierarchy-file").click(); }
+    function importHierarchy(event) {
+      const file = event.target.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = e => { try { routeDroppedJson(JSON.parse(e.target.result)); } catch (err) { showToast("That file isn’t valid JSON"); } };
+      r.readAsText(file); event.target.value = "";
+    }
+    function routeDroppedJson(obj) {
+      if (obj && obj.leaves && !obj.children && !obj.courses && !obj.skills && !obj.branches) { restoreProfile(obj); return; }
+      const tree = normalizeAnyHierarchy(obj);
+      if (!tree || !tree.children || !tree.children.length) { showToast("No nested name/children hierarchy found in that JSON"); return; }
+      buildDagFromTree(tree);
+    }
+    const H_NAME_KEYS = ["branch", "branch_name", "course", "cluster", "sub_cluster", "skill", "skill_name", "name", "title", "label", "node_id", "id"];
+    const H_CHILD_KEYS = ["clusters", "subs", "sub_clusters", "courses", "skills", "sub_skills", "subskills", "microskills", "branches", "children", "nodes", "buckets", "items"];
+    const H_NOTE_KEYS = ["evidence", "note", "source_note", "scope", "decision", "description", "desc", "outcome"];
+    function hNode(x, fb) {
+      if (typeof x === "string") return x.trim() ? { name: x.trim(), note: "", children: [] } : null;
+      if (!x || typeof x !== "object" || Array.isArray(x)) return null;
+      let name = null; for (const k of H_NAME_KEYS) if (typeof x[k] === "string" && x[k].trim()) { name = x[k].trim(); break; }
+      let children = []; for (const k of H_CHILD_KEYS) if (Array.isArray(x[k]) && x[k].length) { const kids = x[k].map(c => hNode(c)).filter(Boolean); if (kids.length) { children = kids; break; } }
+      let note = ""; for (const k of H_NOTE_KEYS) if (typeof x[k] === "string" && x[k].trim()) { note = x[k].trim(); break; }
+      if (!name && !children.length) return null;
+      return { name: name || fb || "Node", note, children };
+    }
+    function normalizeAnyHierarchy(obj) {
+      if (!obj || typeof obj !== "object") return null;
+      if (obj.skill && typeof obj.skill === "object" && !Array.isArray(obj.skill)) obj = obj.skill;
+      if (Array.isArray(obj.branches) && obj.branches.length) {
+        if (obj.branches.length === 1) return hNode(obj.branches[0], "Branch");
+        return { name: obj.schema_name || obj.name || "All Branches", note: obj.schema_note || "", children: obj.branches.map(b => hNode(b)).filter(Boolean) };
+      }
+      return hNode(obj, obj.root || "Hierarchy");
+    }
+    function buildDagFromTree(root) {
+      const nd = {}, nl = {}, nc = {}, desc = {};
+      const used = new Set([root.name]);
+      desc[root.name] = root.note || "Loaded hierarchy";
+      function uniq(n, parent) { let m = n; if (used.has(m)) m = n + " · " + parent; let i = 2; while (used.has(m)) m = n + " (" + (i++) + ")"; used.add(m); return m; }
+      function walk(node, my) {
+        if (!node.children.length) { nl[my] = 0.5; nc[my] = 0.85; if (node.note) desc[my] = node.note; return; }
+        nd[my] = []; if (node.note && !desc[my]) desc[my] = node.note;
+        const w = +(1 / node.children.length).toFixed(3);
+        node.children.forEach(c => { const cn = uniq(c.name, my); nd[my].push([cn, w]); if (c.note) desc[cn] = c.note; walk(c, cn); });
+      }
+      walk(root, root.name);
+      dag = nd; leaves = nl; leafConf = nc; nodeDescriptions = desc;
+      rootId = root.name; customHierarchy = true;
+      inferKinds();
+      selectedNodeId = null; activeHighlightCluster = null; closeInspector(true);
+      document.getElementById("crown-root-title").innerText = rootId;
+      recompute(); renderNetwork(true); updateUI();
+
+      setTimeout(fitGraphCamera, 700);
+      showToast(`Loaded ${rootId}: ${Object.keys(nl).length} leaves, ${Object.keys(nd).length} groups (session only; Reset DAG returns to AI)`);
+    }
+    (function setupDrop() {
+      const ov = document.createElement("div");
+      ov.style.cssText = "position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9999;background:rgba(13,16,23,.82);backdrop-filter:blur(3px);pointer-events:none;";
+      ov.innerHTML = '<div style="border:2px dashed #3b82f6;border-radius:18px;padding:34px 48px;font-size:1.05rem;color:#e8eef6;background:rgba(20,25,37,.9);">Drop a hierarchy or profile JSON</div>';
+      document.body.appendChild(ov);
+      let depth = 0;
+      document.addEventListener("dragenter", e => { e.preventDefault(); depth++; ov.style.display = "flex"; });
+      document.addEventListener("dragover", e => e.preventDefault());
+      document.addEventListener("dragleave", e => { e.preventDefault(); depth = Math.max(0, depth - 1); if (!depth) ov.style.display = "none"; });
+      document.addEventListener("drop", e => {
+        e.preventDefault(); depth = 0; ov.style.display = "none";
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!f) return;
+        if (!/\.json$/i.test(f.name)) { showToast("Drop a .json file"); return; }
+        const r = new FileReader();
+        r.onload = ev => { try { routeDroppedJson(JSON.parse(ev.target.result)); } catch (err) { showToast("That file isn’t valid JSON"); } };
+        r.readAsText(f);
+      });
+    })();
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") { if (selectedNodeId) closeInspector(); else if (isLeftSidebarOpen) toggleLeftSidebar(false); }
+    });
+
+    /* ----------------------------------------------------
+       INIT
+       ---------------------------------------------------- */
+    document.body.classList.toggle("light-theme", resolveTheme() === "light");
+    const restored = loadState();
+    if (!restored) { buildAIDag(weightMode); applyPreset("balanced"); }
+    document.getElementById("preset-select").value = currentPreset;
+    document.getElementById("weight-select").value = weightMode;
+    recompute();
+    renderNetwork();
+    updateUI();
+    lucide.createIcons();
+    updateThemeIcon();
+    if (!isNarrow()) toggleLeftSidebar(true);
+    if (restored) setTimeout(() => showToast("Restored your saved ratings"), 600);
+    if (window.claude && typeof window.claude.use === "function") {
+      window.claude.use("downloads").then(d => { downloadsCap = d; }).catch(() => { });
+    }
+
+  </script>
+</body>
+</html>
